@@ -1,0 +1,159 @@
+# Angar Kitchen · React v2
+
+বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
+
+**প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
+
+## Windows CMD থেকে চালু করুন
+
+প্রয়োজন: **Node.js 24**, **Docker Desktop with Compose** এবং প্রথমবার dependency/image নামানোর জন্য ইন্টারনেট। Docker Desktop চালু রাখুন। ZIP extract করে `angar-kitchen-react` ফোল্ডার খুলুন; যেখানে `package.json` আছে সেই ফোল্ডারের address bar-এ `cmd` লিখে Enter চাপুন। নিচের কমান্ডগুলো ক্রমানুসারে চালান। Linux/macOS terminal-এও একই কমান্ড কাজ করে।
+
+```cmd
+npm ci
+npm run setup
+docker compose up -d --wait
+npm run seed -- --demo
+npm run build
+npm start
+```
+
+| কমান্ড | কাজ / প্রত্যাশিত ফল |
+|---|---|
+| `npm ci` | Lockfile অনুযায়ী React, Express ও dependencies install করে |
+| `npm run setup` | `.env` এবং আলাদা staff password তৈরি করে; পুরোনো non-empty configuration রাখে |
+| `docker compose up -d --wait` | Local MongoDB replica set চালু করে, primary হওয়ার জন্য অপেক্ষা করে |
+| `npm run seed -- --demo` | ছয়টি খাবার, ছয়টি টেবিল, চার role ও চিহ্নিত sample review যোগ করে |
+| `npm run build` | React production build ও local fonts প্রস্তুত করে |
+| `npm start` | Express server চালু করে; terminal খোলা রাখুন |
+
+- Website: [http://localhost:3000](http://localhost:3000)
+- Staff: [http://localhost:3000/staff](http://localhost:3000/staff)
+- বন্ধ করতে server terminal-এ `Ctrl+C`। পরে `npm start`; প্রতিবার seed লাগবে না।
+- Database বন্ধ করে ডেটা রাখতে `docker compose stop`। পরে `docker compose up -d --wait`।
+
+MongoDB Atlas বা নিজের **replica set** থাকলে Docker ধাপ বাদ দিন; `.env`-এ নিজের `MONGODB_URI` ও `MONGODB_DB` দিন। সাধারণ standalone MongoDB transactions চালাতে পারে না; শুধু Compass install করলেই replica set তৈরি হয় না। Atlas connection string server-এর `.env`-এ থাকবে।
+
+## প্রথম অর্ডার পরীক্ষা
+
+নতুন terminal-এ একই project folder খুলে চালান:
+
+```cmd
+npm run tables -- T01
+```
+
+1. Terminal-এর T01 link browser-এ খুলুন। প্রথম demo seed-এ T01/T02 open থাকে। পরে **Staff → Tables → Open table** লাগতে পারে। QR URL থেকে menu-তে এসে table number দেখাবে। সাধারণ `/menu` থেকে browse করা যায়; order করতে active table প্রয়োজন।
+2. খাবারের details খুলুন, size/add-on বেছে cart-এ দিন। নোট দিয়ে **Place order** করুন। **My orders**-এ number ও progress দেখুন।
+3. `/staff`-এ `admin` username এবং `.env`-এর `STAFF_ADMIN_PASSWORD` দিয়ে login: **Order desk → Send to kitchen**।
+4. Logout করে `kitchen` ও `STAFF_KITCHEN_PASSWORD` দিয়ে login: **Start cooking → Mark ready**।
+5. `waiter` ও `STAFF_WAITER_PASSWORD` দিয়ে login: **Mark served**। তখন guest প্রতিটি খাবারের verified feedback দিতে পারবেন।
+6. `cashier` ও `STAFF_CASHIER_PASSWORD` দিয়ে login: **Billing → Finalize bill**। একই table visit-এর বিভিন্ন ফোনের served order এক বিলে আসবে। অসম্পূর্ণ order আগে শেষ/বাতিল করতে হবে। Finalize-এর পরে নতুন order বন্ধ থাকে।
+7. কাউন্টারে টাকা সত্যিই পাওয়ার পরে method/reference এবং confirmation checkbox দিয়ে **Record payment** করুন। Receipt পাওয়া যাবে, table visit বন্ধ হবে।
+8. Guest public/private feedback ও optional photo দিতে পারেন। Admin **Reviews** থেকে reason দিয়ে hide/publish ও reply দিতে পারেন। Private feedback public menu-তে প্রকাশ হয় না। শুধু কম star দেওয়ার কারণে review hide করা উচিত নয়।
+
+একই browser profile-এর staff tab একই login ব্যবহার করে। বিভিন্ন station একসঙ্গে চালাতে আলাদা browser profile ব্যবহার করুন। Guest account লাগে না; order ownership browser cookie দিয়ে নির্ধারিত। অন্য browser/device-এ পুরোনো history পাওয়া যাবে না। একই টেবিলের দ্বিতীয় ফোন নিজের QR scan করে নিজস্ব order দিতে পারবে। Staff UI ইংরেজিতে, guest UI বাংলা/ইংরেজিতে।
+
+## কী তৈরি হয়েছে
+
+| ডকুমেন্টের অংশ | এই সংস্করণের কাজ |
+|---|---|
+| Brand website | Burgundy/gold design, animated hero, local food images, story, private dining, responsive layout, BN/EN |
+| Menu | Categories, search, price/rating sort, favourites, details, availability, variants ও add-ons |
+| QR ও session | Physical table QR, staff open/close visit, context, QR rotate ও print command |
+| Order | Cart, note, server-side price/option validation, retry deduplication, history/progress |
+| Kitchen ও floor | Admin accept/decline, kitchen preparation, waiter serving, manual order, service/bill request, optional sound alert |
+| Billing | একই visit-এর সব served order এক bill, exact paisa calculation, configurable service charge, finalized lock, verified counter payment record, printable receipt |
+| Feedback | Served-item ownership, one feedback per dish/order, stars, liked/improve fields, public/private consent, photo, moderation/reply |
+| Events | Inquiry, spaces/packages/capacity, quote versions, expiring holds, shared-space ও cleanup overlap check, guest acceptance, verified deposit record, status |
+| Admin | Actual live overview/settled sales, menu create/edit, availability, ordering pause, restaurant settings, role-based queues |
+| Menu guide | Budget, group size ও spice অনুযায়ী বর্তমান মেনু থেকে deterministic matching; external AI service লাগে না |
+
+**পরবর্তী integration/কাজ:** merchant gateway/webhook, online payment verification, automatic refunds, delivery/pickup, POS/printer, external AI chatbot, multi-branch/multi-tenant SaaS, staff account management UI ও event configuration editor। Menu guide-কে AI বলা হয়নি। bKash/Nagad/card selection বাস্তবে পাওয়া counter payment **রেকর্ড** করে; online টাকা কাটে না। Event deposit-ও staff-এর verified record। Accepted/deposited event-এর cancellation/refund automation নেই।
+
+প্রথম বিক্রির আগে restaurant-specific menu/fees, staff workflow, event terms, legal/tax rules ও বাস্তব devices দিয়ে acceptance test প্রয়োজন। এটি চালানো যায় এমন প্রথম product version; production hosting, merchant onboarding ও operational approval আলাদা কাজ।
+
+## Event flow
+
+Guest **Private dining → Plan a gathering** থেকে ভবিষ্যতের date/time, guests, space ও package দিয়ে request করবেন। এটি booking confirmation নয়। একই browser-এর **My orders → Your gatherings**-এ request থাকে। Admin **Gatherings** থেকে quote পাঠাবেন; total, menu, terms, deposit ও expiry guest দেখে accept করতে পারবেন। Deposit লাগলে staff কাউন্টারে reference verify করে record করার পরে confirmed হবে। পুরো dining room বুক করলে family corner-এর overlapping slot-ও ধরা হয়; ৩০ মিনিট cleanup buffer যোগ হয়।
+
+Capacity/package definitions `server/events.js`-এ আছে; নিজের venue অনুযায়ী বদলে restart করুন। উদ্ধৃত মূল্য ও terms-ই চূড়ান্ত; package card-এর starting price automatic booking নয়। সময় Bangladesh UTC+6 হিসেবে সংরক্ষণ/দেখানো হয়।
+
+## আগের version থেকে upgrade
+
+আগের folder ও database backup রেখে নতুন ZIP **আলাদা folder-এ** extract করুন। পুরোনো `.env` নতুন folder-এ copy করুন, তারপর `npm ci` ও `npm run setup`। Setup নতুন cashier secret-এর মতো missing fields যোগ করে, non-empty values বদলায় না। পুরোনো `MONGODB_URI`, `MONGODB_DB` ও `COOKIE_SECRET` রাখলে একই database ব্যবহার হবে।
+
+`npm run seed` বিদ্যমান dish price, availability, staff password, order বা review reset করে না; missing metadata/new staff যোগ করে। এরপর `npm run build` ও `npm start`। নতুন installation-এ sample reviews চাইলে `npm run seed -- --demo`। পুরোনো cart migrate করার চেষ্টা হয়; checkout-এ বর্তমান price/options আবার যাচাই হয়।
+
+আগের Docker Compose project/volume reuse করতে পুরোনো MongoDB চালু রেখেই নতুন app-এর `.env` একই MongoDB-তে point করুন। আলাদা folder থেকে নতুন Compose চালালে অন্য volume হতে পারে এবং একই 27017 port conflict করবে। পুরোনো database মুছবেন না।
+
+## QR ও ফোন থেকে পরীক্ষা
+
+```cmd
+npm run tables -- --print
+```
+
+`qr-cards` folder-এ print-ready table SVG তৈরি হবে। শুধু একটি: `npm run tables -- --print T01`। QR print করে টেবিলে রাখুন। Staff **Tables → Replace QR** পুরোনো printed code বাতিল করবে; নতুন card লাগবে।
+
+PC ও ফোন একই trusted Wi-Fi-তে থাকলে `.env`-এ `HOST=0.0.0.0`, `APP_ORIGIN=http://PC_LAN_IP:3000` দিন; `PC_LAN_IP` নিজের PC-এর IPv4 address দিয়ে বদলান। Restart ও QR আবার generate করুন। ফোনের `localhost` PC-কে নির্দেশ করে না। স্থায়ী QR-এর জন্য নিজের HTTPS domain ব্যবহার করুন। MongoDB port internet-এ প্রকাশ করবেন না।
+
+## Development ও code map
+
+```cmd
+npm run dev
+```
+
+একই Express server-এ Vite development middleware ও Node watch চলে; UI edit live refresh হয়। Production যাচাই: `npm run build` তারপর `npm start`। Dev mode শুধু স্থানীয় development-এর জন্য।
+
+| ফাইল/ফোল্ডার | দায়িত্ব |
+|---|---|
+| `client/src/main.jsx` | React router ও app root |
+| `client/src/pages/` | Home, menu, orders/reviews, events, story, receipt, staff |
+| `client/src/components/` | Navigation, cards, option modal, cart, menu matcher, shared UI |
+| `client/src/lib/` | API client, guest/cart/language state, polling |
+| `client/src/styles/` | Responsive guest/staff CSS; reduced-motion support |
+| `server/app.js`, `features.js` | Express routes, role gates, guest/staff features |
+| `server/orders.js`, `billing.js` | Validation/status, table locks, exact totals/payment |
+| `server/events.js` | Requests, quotes, expiring slot holds ও deposit records |
+| `server/security.js` | Password hashing, signed cookies, staff sessions |
+| `server/db.js`, `restaurant.js` | Collections/indexes ও settings/defaults |
+| `scripts/` | Setup, non-reset seed, fonts, QR generation |
+| `public/assets/` | Local fonts, illustrative food/interior images |
+| `dist/` | Included production frontend build; source edit করলে rebuild |
+| `test/workflow.test.js` | Actual MongoDB integration tests |
+
+MongoDB-তে menu, table/session, order snapshots, reviews, staff/sessions, bills, events, service requests, settings ও sensitive-action audit records থাকে। Order/close/finalize/pay একসঙ্গে হলে transaction table document lock দিয়ে সংঘর্ষ সামলায়। Event holds একই venue lock ব্যবহার করে। Staff queue ৩ সেকেন্ড ও guest orders ৪ সেকেন্ড পরপর refresh হয়; WebSocket নয়।
+
+## Validation ও বাস্তব ব্যবহারের প্রস্তুতি
+
+```cmd
+npm test
+```
+
+Local test replica set চালু থাকলে পরীক্ষা চলবে। Test নিজের random database তৈরি ও শেষে মুছে দেয়; production connection দিয়ে tests চালাবেন না। Covered: old workflow, access control, stale prices, concurrent retry, roles, two phones/one bill, service charge, concurrent payment, receipt ownership, private/photo reviews, manual entry, ordering pause, QR replacement, event overlap ও deposit verification।
+
+```cmd
+curl.exe http://localhost:3000/healthz
+```
+
+Ready server `{"status":"ok"}` দেখাবে। Linux/macOS-এ `curl` ব্যবহার করুন।
+
+বাস্তব deployment-এ HTTPS, authenticated MongoDB, persistent `data/reviews` storage, database/media backup, secure environment ও পৃথক staff access লাগবে। `NODE_ENV=production` হলে HTTPS origin বাধ্যতামূলক। Proxy থাকলে `TRUST_PROXY` ঠিকভাবে দিন। Local Compose authentication ছাড়া শুধু localhost-এ bind করে; public database hosting configuration নয়।
+
+Photo সর্বোচ্চ 4 MB / 16 megapixels; server decode করে 1200px-এর মধ্যে WebP হিসেবে metadata ছাড়া আবার তৈরি করে। শুধু approved public photo public endpoint দেয়। Photo processing ব্যর্থ হলেও saved text feedback থাকে।
+
+QR link share করা সম্ভব; active session চলাকালে staff টেবিল মিলিয়ে order accept করবেন। Browser data clear করলে guest history/review access হারাতে পারেন। Tax/VAT hard-code করা হয়নি; service charge configurable, default 0%।
+
+## সাধারণ সমস্যা
+
+| সমস্যা | সমাধান |
+|---|---|
+| Missing configuration | `npm run setup`; `.env`-এর URI/origin দেখুন |
+| MongoDB connection refused | Docker Desktop চালু রাখুন; Compose health/27017 conflict দেখুন |
+| Transaction error | Standalone-এর বদলে replica set বা Atlas |
+| Frontend build missing | `npm run build` তারপর `npm start` |
+| Port 3000 busy | `.env`: `PORT=3001`, `APP_ORIGIN=http://localhost:3001`; restart, QR regenerate |
+| Table closed/QR invalid | Staff table open করুন; rotated QR-এর নতুন link/card |
+| Price/options changed | Menu refresh করে cart item আবার সঠিক option দিয়ে যোগ করুন |
+| Bill finalize হচ্ছে না | একই visit-এর unfinished ticket serve/cancel করুন |
+| `.env` password বদলিয়েও login হয় না | Existing password DB-তে hash করা; seed existing account reset করে না |
+
+Official references: [React](https://react.dev/), [Vite](https://vite.dev/guide/), [Express](https://expressjs.com/), [MongoDB transactions](https://www.mongodb.com/docs/manual/core/transactions/), [Node.js](https://nodejs.org/en/download), [Docker Desktop](https://docs.docker.com/desktop/)। Local font licenses `public/assets/fonts`-এ আছে।
