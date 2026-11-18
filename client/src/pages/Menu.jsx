@@ -19,29 +19,10 @@ import {
   Loading,
 } from "../components/UI";
 import { MenuCard } from "../components/MenuCard";
+import { GuestServiceControls } from "../components/Operations";
 
 export function TableNotice({ compact = false }) {
   const { table, t, reloadContext, notify } = useApp();
-  const [busy, setBusy] = useState(false);
-  async function service(type) {
-    setBusy(true);
-    try {
-      await api("/service-requests", {
-        method: "POST",
-        data: { type, note: "" },
-      });
-      notify(
-        t(
-          "Your request is with the floor team.",
-          "আপনার অনুরোধ স্টাফের কাছে পৌঁছেছে।",
-        ),
-      );
-    } catch (error) {
-      notify(error.message);
-    } finally {
-      setBusy(false);
-    }
-  }
   async function leave() {
     try {
       await api("/context/leave", { method: "POST", data: {} });
@@ -84,20 +65,7 @@ export function TableNotice({ compact = false }) {
         </p>
       </div>
       {table.active && !compact && (
-        <div className="table-service">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => service("waiter")}
-          >
-            <BellRing size={15} />
-            {t("Call server", "স্টাফ ডাকুন")}
-          </button>
-          <button type="button" disabled={busy} onClick={() => service("bill")}>
-            <ReceiptText size={15} />
-            {t("Request bill", "বিল চাই")}
-          </button>
-        </div>
+        <GuestServiceControls key={table.visitKey} />
       )}
       <button type="button" className="leave-table" onClick={leave}>
         {t("Leave table", "টেবিল ছাড়ুন")}

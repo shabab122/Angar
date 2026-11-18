@@ -1,8 +1,48 @@
-# Angar Kitchen · React v2
+# Angar Kitchen · React v2.1
 
 বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
 
 **প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
+
+
+## v2.1-এ শুধু নির্বাচিত পাঁচটি আপডেট
+
+আগের React v2-এর design, menu, cart, billing, reviews, events ও technology stack রাখা হয়েছে। এই release-এর scope:
+
+| ফিচার | ব্যবহার |
+|---|---|
+| Waiter / bill requests | সক্রিয় টেবিলের menu থেকে request; একই type-এর pending request দুই ফোন থেকে করলেও একটিই থাকে। Guest `Waiting → Acknowledged → Completed` দেখেন। Admin/waiter-এর Floor requests-এ acknowledge/resolve ও সব tab থেকে pending badge/optional sound পাওয়া যায়। |
+| Food availability | Admin/kitchen → **Food availability** থেকে এক ক্লিকে sold out/available। Kitchen price বা অন্য menu details বদলাতে পারে না। Guest menu প্রতি ৫ সেকেন্ডে refresh হয়; checkout transaction availability/price আবার যাচাই করে। Accepted order নিজে থেকে বাতিল হয় না। |
+| Sales reports | Admin/cashier → **Sales reports**: date range, daily/monthly grouping, collected amount, food sales, service charge, average paid bill, paid-bill count, popular dishes ও payment breakdown। Summary/periods/items/payments-এর আলাদা CSV। |
+| Kitchen timers / alerts | Order desk-এ total ও বর্তমান stage-এর timer। Awaiting staff ৫, queued ১০, cooking ২০, ready ৫ মিনিট পার হলে delayed। Admin/kitchen/waiter-কে নিজ station-এর নতুন ticket/change update এবং admin/waiter-কে নতুন floor request দেখায়। **Enable alerts** ক্লিক করলে sound চালু হয়। |
+| Order changes / cancellation | Guest **My orders → Request changes / Request cancellation**। `placed`/`queued` অবস্থাতেই করা যায়। Quantity (০ দিলে line বাদ) ও kitchen note পরিবর্তন করা যায়; কারণ প্রয়োজন। Admin Order desk-এ reason দিয়ে approve/reject করবেন। Pending থাকলে cooking/dispatch বন্ধ থাকে; অনুমোদনের আগে মূল order/total বদলায় না। |
+
+### বর্তমান v2 থেকে upgrade — আগে এটি পড়ুন
+
+১. পুরোনো app terminal-এ `Ctrl+C` দিয়ে app বন্ধ করুন। MongoDB চালু রাখুন। নতুন ZIP আলাদা folder-এ extract করুন।
+
+২. পুরোনো `.env` নতুন `angar-kitchen-react` folder-এ copy করুন। একই `MONGODB_URI`, `MONGODB_DB`, `COOKIE_SECRET` ও `APP_ORIGIN` রাখুন। আগের photo রাখতে পুরোনো `data/reviews` folder-ও copy করুন, অথবা একই persistent `UPLOAD_DIR` ব্যবহার করুন।
+
+৩. নতুন folder-এ terminal খুলে একটির পর একটি চালান:
+
+```bash
+npm ci
+npm run setup
+npm run build
+npm start
+```
+
+বিদ্যমান database-এর জন্য আবার demo seed লাগবে না। পুরোনো MongoDB চলতে থাকলে নতুন folder থেকে আরেকটি Compose instance চালাবেন না—অন্য volume/port conflict হতে পারে। App/index startup নতুন optional fields সমর্থন করে; database reset/migration command লাগবে না।
+
+৪. Website: http://localhost:3000 · Staff: http://localhost:3000/staff। একই browser/domain ও cookie secret থাকলে guest history এবং আগের QR/session ব্যবহার করা যাবে।
+
+**বিল/পরিবর্তনের নিয়ম:** Order edit-এ অর্ডারের মূল unit price/size/add-on snapshot থাকে; নতুন খাবার যোগ করার জন্য আলাদা order দিন। বাড়তি quantity approve করার সময় availability আবার যাচাই হয়। Pending request-এর আগে/পরে যা ছিল ও staff decision audit-এ থাকে। Cooking শুরু হয়ে গেলে এই release-এ guest change ও admin cancellation—দুটিই বন্ধ। Approved cancellation billing/sales-এ যোগ হয় না; paid bill পরিবর্তনের ব্যবস্থা এই update-এর অংশ নয়।
+
+**Report-এর অর্থ:** Bangladesh time (Asia/Dhaka, UTC+6) অনুযায়ী `paidAt` দিয়ে inclusive date range, সর্বোচ্চ ৩৬৬ দিন। Collected = food + service charge। এটি profit report নয়; unpaid/finalized bills, cancelled orders ও event deposits বাদ। Popular dishes-এ saved dish name অনুযায়ী variants একত্র হয়; rename করা dish পুরোনো নামেও আলাদা row হতে পারে। CSV সব matched dish দেয়, screen-এ top ২০। পুরোনো paid bill-ও report-এ আসে।
+
+**Alerts:** Dashboard খোলা ও connection সচল থাকলে polling-এর মাধ্যমে updates আসে; এটি SMS/push নয়। Sound-এর জন্য প্রতিটি station/browser session-এ **Enable alerts** চাপুন। Browser background/tab suspension হলে polling/audio থামতে পারে। Timer-এর threshold operational attention marker, promised cooking time নয়।
+
+**যাচাই:** `npm test`-এ existing workflow ও v2.1 integration tests আছে। রান করার আগে test MongoDB replica set চালু রাখুন। এগুলো random test database তৈরি করে শেষে শুধু সেই test database মুছে দেয়। Browser acceptance checklist `UPGRADE_v2.1_BN.md`-এ দেওয়া হয়েছে।
 
 ## Windows CMD থেকে চালু করুন
 
@@ -60,11 +100,11 @@ npm run tables -- T01
 | Menu | Categories, search, price/rating sort, favourites, details, availability, variants ও add-ons |
 | QR ও session | Physical table QR, staff open/close visit, context, QR rotate ও print command |
 | Order | Cart, note, server-side price/option validation, retry deduplication, history/progress |
-| Kitchen ও floor | Admin accept/decline, kitchen preparation, waiter serving, manual order, service/bill request, optional sound alert |
+| Kitchen ও floor | Admin accept/decline, pre-cooking guest change approvals, kitchen stage timers, waiter serving, manual order, acknowledged service/bill requests, optional sound alert |
 | Billing | একই visit-এর সব served order এক bill, exact paisa calculation, configurable service charge, finalized lock, verified counter payment record, printable receipt |
 | Feedback | Served-item ownership, one feedback per dish/order, stars, liked/improve fields, public/private consent, photo, moderation/reply |
 | Events | Inquiry, spaces/packages/capacity, quote versions, expiring holds, shared-space ও cleanup overlap check, guest acceptance, verified deposit record, status |
-| Admin | Actual live overview/settled sales, menu create/edit, availability, ordering pause, restaurant settings, role-based queues |
+| Admin | Live overview, paid sales reports/CSV, menu create/edit, kitchen availability controls, ordering pause, restaurant settings, role-based queues |
 | Menu guide | Budget, group size ও spice অনুযায়ী বর্তমান মেনু থেকে deterministic matching; external AI service লাগে না |
 
 **পরবর্তী integration/কাজ:** merchant gateway/webhook, online payment verification, automatic refunds, delivery/pickup, POS/printer, external AI chatbot, multi-branch/multi-tenant SaaS, staff account management UI ও event configuration editor। Menu guide-কে AI বলা হয়নি। bKash/Nagad/card selection বাস্তবে পাওয়া counter payment **রেকর্ড** করে; online টাকা কাটে না। Event deposit-ও staff-এর verified record। Accepted/deposited event-এর cancellation/refund automation নেই।
@@ -111,14 +151,15 @@ npm run dev
 | `client/src/lib/` | API client, guest/cart/language state, polling |
 | `client/src/styles/` | Responsive guest/staff CSS; reduced-motion support |
 | `server/app.js`, `features.js` | Express routes, role gates, guest/staff features |
-| `server/orders.js`, `billing.js` | Validation/status, table locks, exact totals/payment |
+| `server/orders.js`, `order-changes.js`, `billing.js` | Validation/status, approved changes, table/dish locks, exact totals/payment |
+| `server/service-requests.js`, `reports.js` | Table request acknowledgements and paid sales/CSV |
 | `server/events.js` | Requests, quotes, expiring slot holds ও deposit records |
 | `server/security.js` | Password hashing, signed cookies, staff sessions |
 | `server/db.js`, `restaurant.js` | Collections/indexes ও settings/defaults |
 | `scripts/` | Setup, non-reset seed, fonts, QR generation |
 | `public/assets/` | Local fonts, illustrative food/interior images |
 | `dist/` | Included production frontend build; source edit করলে rebuild |
-| `test/workflow.test.js` | Actual MongoDB integration tests |
+| `test/workflow.test.js`, `operations.test.js` | Existing and v2.1 MongoDB integration tests |
 
 MongoDB-তে menu, table/session, order snapshots, reviews, staff/sessions, bills, events, service requests, settings ও sensitive-action audit records থাকে। Order/close/finalize/pay একসঙ্গে হলে transaction table document lock দিয়ে সংঘর্ষ সামলায়। Event holds একই venue lock ব্যবহার করে। Staff queue ৩ সেকেন্ড ও guest orders ৪ সেকেন্ড পরপর refresh হয়; WebSocket নয়।
 
@@ -155,5 +196,21 @@ QR link share করা সম্ভব; active session চলাকালে st
 | Price/options changed | Menu refresh করে cart item আবার সঠিক option দিয়ে যোগ করুন |
 | Bill finalize হচ্ছে না | একই visit-এর unfinished ticket serve/cancel করুন |
 | `.env` password বদলিয়েও login হয় না | Existing password DB-তে hash করা; seed existing account reset করে না |
+
+### Podman-এ পুরোনো replica-set initialization সমস্যা হলে
+
+MongoDB container চলছে কিন্তু unhealthy এবং `no replset config has been received` এলে আগে status দেখুন:
+
+```bash
+docker compose exec -T mongo mongosh --quiet --host 127.0.0.1 --eval 'rs.status()'
+```
+
+শুধু configuration নেই নিশ্চিত হলে প্রথমবার initialize করুন:
+
+```bash
+docker compose exec -T mongo mongosh --quiet --host 127.0.0.1 --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+```
+
+`ok: 1` এলে `docker compose ps` দিয়ে healthy হওয়া দেখুন। আগে থেকেই initialized database-এ এই initialization আবার লাগবে না। কোনো volume/delete/reset command চালাবেন না।
 
 Official references: [React](https://react.dev/), [Vite](https://vite.dev/guide/), [Express](https://expressjs.com/), [MongoDB transactions](https://www.mongodb.com/docs/manual/core/transactions/), [Node.js](https://nodejs.org/en/download), [Docker Desktop](https://docs.docker.com/desktop/)। Local font licenses `public/assets/fonts`-এ আছে।

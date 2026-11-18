@@ -13,6 +13,7 @@ import { Staff } from "./pages/Staff";
 import { Button, EmptyState } from "./components/UI";
 import "./styles/site.css";
 import "./styles/staff.css";
+import "./styles/operations.css";
 
 function App() {
   return (

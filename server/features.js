@@ -8,19 +8,23 @@ import { z } from "zod";
 import { body, dishId, HttpError, orderInput } from "./http.js";
 import { billView, finalizeBill, settleBill } from "./billing.js";
 import { ACTIVE, orderView, placeOrder } from "./orders.js";
-import {
-  getGuest,
-  getTableCookie,
-  hash,
-  randomToken,
-  tableVisitKey,
-} from "./security.js";
+import { getGuest, hash, randomToken, tableVisitKey } from "./security.js";
 import {
   normalizeDish,
   publicSettings,
   restaurantSettings,
 } from "./restaurant.js";
 import { registerEventGuest, registerEventStaff } from "./events.js";
+import {
+  registerGuestServiceRequests,
+  registerStaffServiceRequests,
+} from "./service-requests.js";
+import {
+  cancelBeforeCooking,
+  registerGuestOrderChanges,
+  registerStaffOrderChanges,
+} from "./order-changes.js";
+import { registerReports } from "./reports.js";
 
 function allowRoles(...roles) {
   return (req, res, next) => {
@@ -76,56 +80,8 @@ export function registerGuestFeatures(api, store, config, requireId) {
     res.json({ matches, mode: "menu-filters" });
   });
 
-  api.post("/service-requests", async (req, res) => {
-    const input = body(
-      z.strictObject({
-        type: z.enum(["waiter", "bill", "issue"]),
-        note: z.string().trim().max(200).default(""),
-      }),
-      req.body,
-    );
-    const context = getTableCookie(req);
-    if (!context?.visitId)
-      throw new HttpError(
-        409,
-        "TABLE_REQUIRED",
-        "Scan your active table code first.",
-      );
-    await store.client.withSession((session) =>
-      session.withTransaction(async () => {
-        const table = await store.tables.findOneAndUpdate(
-          { _id: context.tableId, activeVisitId: context.visitId },
-          { $inc: { revision: 1 } },
-          { session, returnDocument: "after" },
-        );
-        if (!table)
-          throw new HttpError(
-            409,
-            "TABLE_CLOSED",
-            "This table visit has ended.",
-          );
-        const filter = {
-          tableId: table._id,
-          visitId: context.visitId,
-          type: input.type,
-          status: "open",
-        };
-        await store.serviceRequests.updateOne(
-          filter,
-          {
-            $setOnInsert: {
-              ...filter,
-              tableNumber: table.number,
-              note: input.note,
-              createdAt: new Date(),
-            },
-          },
-          { session, upsert: true },
-        );
-      }),
-    );
-    res.status(201).json({ status: "open" });
-  });
+  registerGuestServiceRequests(api, store);
+  registerGuestOrderChanges(api, store, config, requireId);
 
   api.get("/receipts/:id", async (req, res) => {
     const bill = await store.bills.findOne({
@@ -402,35 +358,9 @@ export function registerStaffFeatures(
     res.status(result.replay ? 200 : 201).json({ order: result.order });
   });
 
-  api.get("/service-requests", floorRoles, async (req, res) => {
-    const rows = await store.serviceRequests
-      .find({ status: "open" })
-      .sort({ createdAt: 1 })
-      .limit(80)
-      .toArray();
-    res.json({
-      requests: rows.map(({ _id, tableNumber, type, note, createdAt }) => ({
-        id: _id.toString(),
-        tableNumber,
-        type,
-        note,
-        createdAt,
-      })),
-    });
-  });
-  api.post("/service-requests/:id/resolve", floorRoles, async (req, res) => {
-    await store.serviceRequests.updateOne(
-      { _id: requireId(req.params.id), status: "open" },
-      {
-        $set: {
-          status: "resolved",
-          resolvedBy: req.staff.username,
-          resolvedAt: new Date(),
-        },
-      },
-    );
-    res.status(204).end();
-  });
+  registerStaffServiceRequests(api, store, floorRoles, requireId);
+  registerStaffOrderChanges(api, store, requireAdmin, requireId);
+  registerReports(api, store, billingRoles);
 
   api.get("/review-media/:filename", requireAdmin, async (req, res) => {
     if (!/^[a-f0-9]{36}\.webp$/.test(req.params.filename))
@@ -500,57 +430,7 @@ export function registerStaffFeatures(
       z.strictObject({ reason: z.string().trim().min(3).max(160) }),
       req.body,
     );
-    await store.client.withSession((session) =>
-      session.withTransaction(async () => {
-        const order = await store.orders.findOne({ _id: id }, { session });
-        if (!order || !ACTIVE.includes(order.status))
-          throw new HttpError(
-            409,
-            "ORDER_UPDATED",
-            "Only an unfinished order can be cancelled.",
-          );
-        const table = await store.tables.findOneAndUpdate(
-          {
-            _id: order.tableId,
-            activeVisitId: order.visitId,
-            billingState: { $ne: "finalized" },
-          },
-          { $inc: { revision: 1 } },
-          { session },
-        );
-        if (!table)
-          throw new HttpError(
-            409,
-            "BILL_FINALIZED",
-            "This visit has been finalized.",
-          );
-        await store.orders.updateOne(
-          { _id: id, status: order.status },
-          {
-            $set: { status: "cancelled", updatedAt: new Date() },
-            $push: {
-              history: {
-                status: "cancelled",
-                at: new Date(),
-                by: req.staff.username,
-                reason,
-              },
-            },
-          },
-          { session },
-        );
-        await store.audit.insertOne(
-          {
-            type: "order.cancelled",
-            orderId: id,
-            by: req.staff.username,
-            reason,
-            at: new Date(),
-          },
-          { session },
-        );
-      }),
-    );
+    await cancelBeforeCooking(store, id, reason, req.staff);
     res.status(204).end();
   });
   registerEventStaff(api, store, requireAdmin, requireId);

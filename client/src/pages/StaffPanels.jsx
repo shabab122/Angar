@@ -36,6 +36,12 @@ import {
   Status,
 } from "../components/UI";
 import { Receipt } from "./Receipt";
+import {
+  isDelayed,
+  OrderTimer,
+  StaffChangeReview,
+  useClock,
+} from "../components/Operations";
 
 function useAction(notify) {
   const [busy, setBusy] = useState(false);
@@ -260,6 +266,7 @@ function MessageIcon(props) {
 }
 
 export function OrdersPanel({ queue, user, notify, onRefresh }) {
+  const now = useClock();
   const { money } = useApp();
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -271,6 +278,7 @@ export function OrdersPanel({ queue, user, notify, onRefresh }) {
       ? [
           ["all", "All tickets"],
           ["placed", "New"],
+          ["changes", "Change requests"],
           ["in-service", "In service"],
           ["closed", "Closed"],
         ]
@@ -286,6 +294,7 @@ export function OrdersPanel({ queue, user, notify, onRefresh }) {
   const tickets = all.filter(
     (order) =>
       (filter === "all" ||
+        (filter === "changes" && order.changeRequest?.status === "pending") ||
         (filter === "in-service" &&
           ["queued", "preparing", "ready"].includes(order.status)) ||
         (filter === "closed" &&
@@ -310,6 +319,11 @@ export function OrdersPanel({ queue, user, notify, onRefresh }) {
   }
   return (
     <PanelState resource={queue}>
+      <div className="queue-timing-summary" role="status">
+        {all.filter((order) => isDelayed(order, now)).length} delayed tickets ·
+        Review after 5 min awaiting staff, 10 min queued, 20 min cooking or 5
+        min ready.
+      </div>
       <div className="staff-filter-row">
         <div className="segmented-controls">
           {filters.map(([id, label]) => (
@@ -348,7 +362,13 @@ export function OrdersPanel({ queue, user, notify, onRefresh }) {
       {tickets.length ? (
         <div className="ticket-grid">
           {tickets.map((order) => (
-            <article className="staff-ticket" key={order.id}>
+            <article
+              className={
+                "staff-ticket" +
+                (isDelayed(order, now) ? " ticket-delayed" : "")
+              }
+              key={order.id}
+            >
               <header>
                 <span className="ticket-table">
                   <Table2 size={17} />
@@ -362,6 +382,7 @@ export function OrdersPanel({ queue, user, notify, onRefresh }) {
                 {dhakaTime(order.createdAt)}
                 {order.source === "staff" && <span>Waiter entry</span>}
               </p>
+              <OrderTimer order={order} now={now} />
               <ul>
                 {order.items.map((item, index) => (
                   <li key={index}>
@@ -393,6 +414,20 @@ export function OrdersPanel({ queue, user, notify, onRefresh }) {
                   {order.history.at(-1)?.reason}
                 </p>
               )}
+              {order.changeRequest?.status === "pending" &&
+                (user.role === "admin" ? (
+                  <StaffChangeReview
+                    key={order.changeRequest.id}
+                    order={order}
+                    notify={notify}
+                    onRefresh={onRefresh}
+                  />
+                ) : (
+                  <p className="pending-change-notice">
+                    Guest change request awaiting admin review. Cooking is
+                    paused.
+                  </p>
+                ))}
               <div className="ticket-amount">
                 <span>Order total</span>
                 <strong>{money(order.total)}</strong>
@@ -402,7 +437,9 @@ export function OrdersPanel({ queue, user, notify, onRefresh }) {
                   <>
                     <Button
                       className="button-small"
-                      disabled={action.busy}
+                      disabled={
+                        action.busy || order.changeRequest?.status === "pending"
+                      }
                       onClick={() => move(order, "send")}
                       arrow
                     >
@@ -423,25 +460,26 @@ export function OrdersPanel({ queue, user, notify, onRefresh }) {
                     </Button>
                   </>
                 )}
-                {user.role === "admin" &&
-                  ["queued", "preparing", "ready"].includes(order.status) && (
-                    <button
-                      type="button"
-                      className="cancel-ticket"
-                      onClick={() =>
-                        setReason({
-                          path: "/staff/orders/" + order.id + "/cancel",
-                          data: {},
-                          title: "Cancel this unfinished order",
-                        })
-                      }
-                    >
-                      Cancel with a reason
-                    </button>
-                  )}
+                {user.role === "admin" && ["queued"].includes(order.status) && (
+                  <button
+                    type="button"
+                    className="cancel-ticket"
+                    onClick={() =>
+                      setReason({
+                        path: "/staff/orders/" + order.id + "/cancel",
+                        data: {},
+                        title: "Cancel before cooking",
+                      })
+                    }
+                  >
+                    Cancel with a reason
+                  </button>
+                )}
                 {user.role === "kitchen" && order.status === "queued" && (
                   <Button
-                    disabled={action.busy}
+                    disabled={
+                      action.busy || order.changeRequest?.status === "pending"
+                    }
                     onClick={() => move(order, "start")}
                     className="button-small"
                   >
@@ -1093,11 +1131,34 @@ export function ReviewsPanel({ notify, onRefresh }) {
   );
 }
 
-export function RequestsPanel({ notify, onRefresh }) {
-  const resource = useResource("/staff/service-requests", { interval: 4000 });
+export function RequestsPanel({ resource, notify, onRefresh }) {
   const action = useAction(notify);
+  const now = useClock();
+  async function update(request, operation) {
+    await action.run(
+      () =>
+        api("/staff/service-requests/" + request.id + "/" + operation, {
+          method: "POST",
+          data: {},
+        }),
+      operation === "resolve" ? "Request resolved." : "Request acknowledged.",
+      async () => {
+        await resource.reload();
+        onRefresh();
+      },
+    );
+  }
   return (
     <PanelState resource={resource}>
+      <div className="panel-heading">
+        <div>
+          <h2>Floor requests</h2>
+          <p>
+            Acknowledge a call so the guest knows help is on the way. Resolve it
+            after assisting.
+          </p>
+        </div>
+      </div>
       {action.error && <ErrorMessage>{action.error}</ErrorMessage>}
       {resource.data?.requests.length ? (
         <div className="requests-grid">
@@ -1117,33 +1178,45 @@ export function RequestsPanel({ notify, onRefresh }) {
                     ? "Bill requested"
                     : request.type === "issue"
                       ? "Guest needs help"
-                      : "Server requested"}
+                      : "Waiter requested"}
                 </strong>
                 {request.note && <p>{request.note}</p>}
-                <small>{dhakaTime(request.createdAt)}</small>
+                <small>
+                  {dhakaTime(request.createdAt)} · Waiting{" "}
+                  {Math.max(
+                    0,
+                    Math.floor(
+                      (now - new Date(request.createdAt).getTime()) / 60000,
+                    ),
+                  )}{" "}
+                  min
+                </small>
+                <small>
+                  {request.status === "acknowledged"
+                    ? "Acknowledged by " + request.acknowledgedBy
+                    : "Not yet acknowledged"}
+                </small>
               </div>
-              <Button
-                secondary
-                className="button-small"
-                disabled={action.busy}
-                onClick={() =>
-                  action.run(
-                    () =>
-                      api(
-                        "/staff/service-requests/" + request.id + "/resolve",
-                        { method: "POST", data: {} },
-                      ),
-                    "Request resolved.",
-                    async () => {
-                      await resource.reload();
-                      onRefresh();
-                    },
-                  )
-                }
-              >
-                <Check size={16} />
-                Resolved
-              </Button>
+              <div className="request-actions">
+                {request.status !== "acknowledged" && (
+                  <Button
+                    className="button-small"
+                    disabled={action.busy}
+                    onClick={() => update(request, "acknowledge")}
+                  >
+                    Acknowledge
+                  </Button>
+                )}
+                <Button
+                  secondary
+                  className="button-small"
+                  disabled={action.busy}
+                  onClick={() => update(request, "resolve")}
+                >
+                  <Check size={16} />
+                  Resolve request
+                </Button>
+              </div>
             </article>
           ))}
         </div>
@@ -1151,7 +1224,7 @@ export function RequestsPanel({ notify, onRefresh }) {
         <EmptyState
           icon={BellRing}
           title="The floor is all caught up."
-          text="Calls for a server or a bill appear here with their table number."
+          text="Calls for a waiter or a bill appear here with their table number."
         />
       )}
     </PanelState>

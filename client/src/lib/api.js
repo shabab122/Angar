@@ -99,7 +99,7 @@ export const statusNames = {
   preparing: "Preparing",
   ready: "Ready to serve",
   served: "Served",
-  cancelled: "Declined",
+  cancelled: "Cancelled",
   paid: "Paid",
   finalized: "Awaiting payment",
   requested: "Request received",
@@ -116,7 +116,7 @@ export const statusBn = {
   preparing: "প্রস্তুত হচ্ছে",
   ready: "পরিবেশনের জন্য প্রস্তুত",
   served: "পরিবেশিত",
-  cancelled: "গ্রহণ করা হয়নি",
+  cancelled: "বাতিল",
   paid: "পরিশোধিত",
   finalized: "পেমেন্টের অপেক্ষায়",
 };
