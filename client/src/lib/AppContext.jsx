@@ -95,10 +95,17 @@ export function AppProvider({ children }) {
     void reloadContext().catch(() => {});
     void reloadRestaurant().catch(() => {});
     const refresh = () => {
-      if (!document.hidden) void reloadContext().catch(() => {});
+      if (!document.hidden) {
+        void reloadContext().catch(() => {});
+        void reloadMenu();
+      }
     };
-    const timer = setInterval(refresh, 12000);
-    return () => clearInterval(timer);
+    const timer = setInterval(refresh, 5000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
   }, [reloadMenu, reloadContext, reloadRestaurant]);
   useEffect(() => {
     saveStorage("angar.cart.v2", cart);

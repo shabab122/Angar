@@ -37,6 +37,10 @@ export function orderView(order, staff = false) {
     createdAt,
     updatedAt,
     source: order.source || "guest",
+    revision: order.revision || 0,
+    changeRequest: order.changeRequest
+      ? changeRequestView(order.changeRequest, staff)
+      : null,
     history: history.map(({ status, at, reason, by }) => ({
       status,
       at,
@@ -44,6 +48,32 @@ export function orderView(order, staff = false) {
       ...(staff ? { by } : {}),
     })),
   };
+}
+
+function changeRequestView(change, staff) {
+  const { fingerprint, increasedDishIds, decidedBy, ...visible } = change;
+  return { ...visible, ...(staff && decidedBy ? { decidedBy } : {}) };
+}
+
+// A write to every selected dish makes a concurrent sold-out/price update
+// conflict with checkout. Snapshot reads alone could accept stale availability.
+export async function lockAvailableDishes(store, ids, session) {
+  const menu = [];
+  for (const id of [...new Set(ids)].sort()) {
+    const dish = await store.dishes.findOneAndUpdate(
+      { _id: id, available: true },
+      { $inc: { orderRevision: 1 } },
+      { session, returnDocument: "after" },
+    );
+    if (!dish)
+      throw new HttpError(
+        409,
+        "ITEM_UNAVAILABLE",
+        "An item sold out. Review your updated cart.",
+      );
+    menu.push(dish);
+  }
+  return menu;
 }
 
 export async function placeOrder(
@@ -54,7 +84,7 @@ export async function placeOrder(
   input,
   actor = {},
 ) {
-  const { client, orders, tables, dishes } = store;
+  const { client, orders, tables } = store;
   const itemKey = (item) =>
     [
       item.dishId,
@@ -141,12 +171,11 @@ export async function placeOrder(
               "ORDERING_PAUSED",
               "The kitchen is taking a short pause. Ask your server for help.",
             );
-          const menu = await dishes
-            .find(
-              { _id: { $in: items.map((item) => item.dishId) } },
-              { session },
-            )
-            .toArray();
+          const menu = await lockAvailableDishes(
+            store,
+            items.map((item) => item.dishId),
+            session,
+          );
           const byId = new Map(menu.map((dish) => [dish._id, dish]));
           const orderItems = items.map(
             ({ dishId, quantity, expectedPrice, variantId, addonIds = [] }) => {
@@ -217,6 +246,7 @@ export async function placeOrder(
             ...(actor.by ? { takenBy: actor.by } : {}),
             total: orderItems.reduce((total, item) => total + item.subtotal, 0),
             status: "placed",
+            revision: 0,
             createdAt: now,
             updatedAt: now,
             history: [{ status: "placed", at: now }],
@@ -282,6 +312,18 @@ export async function closeTable(store, number) {
             "BILL_REQUIRED",
             "Finalize and settle this table at the counter to close the visit.",
           );
+        await store.serviceRequests.updateMany(
+          { tableId: table._id, visitId: table.activeVisitId, status: "open" },
+          {
+            $set: {
+              status: "resolved",
+              resolvedAt: new Date(),
+              resolvedBy: "system",
+              resolutionReason: "table_closed",
+            },
+          },
+          { session },
+        );
       },
       { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } },
     ),

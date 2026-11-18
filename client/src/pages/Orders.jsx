@@ -25,6 +25,7 @@ import {
   Status,
 } from "../components/UI";
 import { TableNotice } from "./Menu";
+import { GuestOrderChanges } from "../components/Operations";
 
 export function Orders() {
   const app = useApp();
@@ -187,6 +188,7 @@ export function Orders() {
                     {order.note}
                   </p>
                 )}
+                <GuestOrderChanges order={order} onRefresh={resource.reload} />
                 <footer>
                   <span>
                     {t("Food total", "খাবারের মোট")}

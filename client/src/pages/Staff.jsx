@@ -24,6 +24,7 @@ import { useApp } from "../lib/AppContext";
 import { api, dhakaTime } from "../lib/api";
 import { useResource } from "../lib/useResource";
 import { Button, ErrorMessage, Eyebrow, Loading, Logo } from "../components/UI";
+import { AvailabilityPanel, SalesReportsPanel } from "../components/Operations";
 import {
   BillingPanel,
   EventsPanel,
@@ -47,6 +48,8 @@ const navigation = [
   ["requests", BellRing, "Floor requests", ["admin", "waiter"]],
   ["manual", UtensilsCrossed, "Take an order", ["admin", "waiter"]],
   ["menu", MenuSquare, "Menu studio", ["admin"]],
+  ["availability", MenuSquare, "Food availability", ["admin", "kitchen"]],
+  ["reports", CircleDollarSign, "Sales reports", ["admin", "cashier"]],
   ["settings", Settings2, "Restaurant settings", ["admin"]],
 ];
 
@@ -190,6 +193,26 @@ function Login({ onSignedIn, initialError }) {
     </div>
   );
 }
+function ring(context) {
+  if (!context || context.state !== "running") return;
+  try {
+    const oscillator = context.createOscillator();
+    const volume = context.createGain();
+    oscillator.connect(volume);
+    volume.connect(context.destination);
+    oscillator.frequency.value = 660;
+    volume.gain.setValueAtTime(0.07, context.currentTime);
+    volume.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.25);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.25);
+    oscillator.onended = () => {
+      oscillator.disconnect();
+      volume.disconnect();
+    };
+  } catch {
+    /* A muted or suspended device must not interrupt the queue. */
+  }
+}
 export function Dashboard({ user, onSignedOut }) {
   const { notify } = useApp();
   const [tab, setTab] = useState(
@@ -203,8 +226,13 @@ export function Dashboard({ user, onSignedOut }) {
   const [sound, setSound] = useState(false);
   const audio = useRef(null);
   const seen = useRef(null);
+  const seenRequests = useRef(null);
   const queue = useResource("/staff/orders", { interval: 3000 });
   const overview = useResource("/staff/overview", { interval: 10000 });
+  const floorQueue = useResource("/staff/service-requests", {
+    interval: 3000,
+    enabled: ["admin", "waiter"].includes(user.role),
+  });
   const activeNav = navigation.filter((item) => item[3].includes(user.role));
   const title = activeNav.find((item) => item[0] === tab)?.[2] || "Workspace";
   useEffect(() => {
@@ -213,28 +241,34 @@ export function Dashboard({ user, onSignedOut }) {
   }, [queue.error, overview.error, onSignedOut]);
   useEffect(() => {
     if (!queue.data) return;
-    const ids = new Set(queue.data.orders.map((order) => order.id));
+    const ids = new Set(
+      queue.data.orders.flatMap((order) => [
+        "ticket:" + order.id,
+        ...(order.changeRequest?.status === "pending"
+          ? ["change:" + order.id + ":" + order.changeRequest.id]
+          : []),
+      ]),
+    );
     const fresh =
       seen.current && [...ids].filter((id) => !seen.current.has(id)).length;
     seen.current = ids;
-    if (fresh && sound && audio.current) {
-      const context = audio.current;
-      const oscillator = context.createOscillator();
-      const volume = context.createGain();
-      oscillator.connect(volume);
-      volume.connect(context.destination);
-      oscillator.frequency.value = 660;
-      volume.gain.value = 0.07;
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.15);
-      notify(
-        fresh +
-          " new " +
-          (fresh === 1 ? "ticket" : "tickets") +
-          " in your station.",
-      );
+    if (fresh) {
+      notify(fresh + " new station " + (fresh === 1 ? "update." : "updates."));
+      if (sound) ring(audio.current);
     }
   }, [queue.data, sound, notify]);
+  useEffect(() => {
+    if (!floorQueue.data) return;
+    const ids = new Set(floorQueue.data.requests.map((request) => request.id));
+    const fresh =
+      seenRequests.current &&
+      [...ids].filter((id) => !seenRequests.current.has(id)).length;
+    seenRequests.current = ids;
+    if (fresh) {
+      notify(fresh + " new floor " + (fresh === 1 ? "request." : "requests."));
+      if (sound) ring(audio.current);
+    }
+  }, [floorQueue.data, sound, notify]);
   async function toggleSound() {
     if (!sound) {
       const Audio = window.AudioContext || window.webkitAudioContext;
@@ -243,7 +277,12 @@ export function Dashboard({ user, onSignedOut }) {
         return;
       }
       audio.current ||= new Audio();
-      await audio.current.resume();
+      try {
+        await audio.current.resume();
+      } catch {
+        notify("Tap Enable alerts again to allow sound.");
+        return;
+      }
     }
     setSound(!sound);
   }
@@ -261,6 +300,7 @@ export function Dashboard({ user, onSignedOut }) {
     onRefresh: () => {
       void queue.reload();
       void overview.reload();
+      void floorQueue.reload();
     },
   };
   function select(value) {
@@ -286,16 +326,24 @@ export function Dashboard({ user, onSignedOut }) {
               <Icon size={18} />
               <span>{label}</span>
               {id === "orders" &&
-                queue.data?.orders.filter((order) => order.status === "placed")
-                  .length > 0 && (
+                queue.data?.orders.filter(
+                  (order) =>
+                    order.status === "placed" ||
+                    order.changeRequest?.status === "pending",
+                ).length > 0 && (
                   <b>
                     {
                       queue.data.orders.filter(
-                        (order) => order.status === "placed",
+                        (order) =>
+                          order.status === "placed" ||
+                          order.changeRequest?.status === "pending",
                       ).length
                     }
                   </b>
                 )}
+              {id === "requests" && floorQueue.data?.requests.length > 0 && (
+                <b>{floorQueue.data.requests.length}</b>
+              )}
               {id === "reviews" && overview.data?.pendingReviews > 0 && (
                 <b>{overview.data.pendingReviews}</b>
               )}
@@ -402,9 +450,13 @@ export function Dashboard({ user, onSignedOut }) {
           {tab === "billing" && <BillingPanel {...common} />}
           {tab === "events" && <EventsPanel {...common} />}
           {tab === "reviews" && <ReviewsPanel {...common} />}
-          {tab === "requests" && <RequestsPanel {...common} />}
+          {tab === "requests" && (
+            <RequestsPanel {...common} resource={floorQueue} />
+          )}
           {tab === "manual" && <ManualOrderPanel {...common} />}
           {tab === "menu" && <MenuPanel {...common} />}
+          {tab === "availability" && <AvailabilityPanel {...common} />}
+          {tab === "reports" && <SalesReportsPanel />}
           {tab === "settings" && <SettingsPanel {...common} />}
         </main>
       </div>

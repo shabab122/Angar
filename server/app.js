@@ -29,13 +29,7 @@ import {
   reviewInput,
   dishId,
 } from "./http.js";
-import {
-  ACTIONS,
-  ACTIVE,
-  closeTable,
-  orderView,
-  placeOrder,
-} from "./orders.js";
+import { ACTIVE, closeTable, orderView, placeOrder } from "./orders.js";
 import {
   cookieOptions,
   getGuest,
@@ -50,6 +44,8 @@ import {
   TABLE_COOKIE,
   tableVisitKey,
 } from "./security.js";
+
+import { moveOrder } from "./order-changes.js";
 
 const publicDir = fileURLToPath(new URL("../dist/", import.meta.url));
 const staffStatuses = {
@@ -243,13 +239,11 @@ export function createApp(store, config, frontendMiddleware) {
     for (const review of ownReviews) {
       const id = review.orderId.toString();
       if (!byOrder.has(id)) byOrder.set(id, []);
-      byOrder
-        .get(id)
-        .push({
-          dishId: review.dishId,
-          status: review.status,
-          visibility: review.visibility || "public",
-        });
+      byOrder.get(id).push({
+        dishId: review.dishId,
+        status: review.status,
+        visibility: review.visibility || "public",
+      });
     }
     const bills = await store.bills
       .find({ visitId: { $in: recent.map((order) => order.visitId) } })
@@ -421,42 +415,8 @@ export function createApp(store, config, frontendMiddleware) {
   staffApi.post("/orders/:id/action", async (req, res) => {
     const id = requireId(req.params.id);
     const { action, reason } = body(actionInput, req.body);
-    const transition = ACTIONS[action];
-    if (transition.role !== req.staff.role)
-      throw new HttpError(
-        403,
-        "FORBIDDEN",
-        "This action belongs to a different staff role.",
-      );
-    if (action === "reject" && !reason)
-      throw new HttpError(
-        400,
-        "REASON_REQUIRED",
-        "Give a reason the guest can see.",
-      );
-    const now = new Date();
-    const order = await orders.findOneAndUpdate(
-      { _id: id, status: transition.from },
-      {
-        $set: { status: transition.to, updatedAt: now },
-        $push: {
-          history: {
-            status: transition.to,
-            at: now,
-            by: req.staff.username,
-            ...(action === "reject" ? { reason } : {}),
-          },
-        },
-      },
-      { returnDocument: "after" },
-    );
-    if (!order)
-      throw new HttpError(
-        409,
-        "ORDER_UPDATED",
-        "This order changed. Refresh the queue and try again.",
-      );
-    res.json({ order: orderView(order, true) });
+    const order = await moveOrder(store, id, action, reason, req.staff);
+    res.json({ order });
   });
   staffApi.get(
     "/tables",
@@ -543,6 +503,46 @@ export function createApp(store, config, frontendMiddleware) {
       throw new HttpError(404, "NOT_FOUND", "This review could not be found.");
     res.json({ status: review.status });
   });
+  staffApi.patch(
+    "/menu/:id/availability",
+    allowRoles("admin", "kitchen"),
+    async (req, res) => {
+      const input = body(
+        z.strictObject({
+          available: z.boolean(),
+          expectedAvailable: z.boolean(),
+        }),
+        req.body,
+      );
+      const dish = await store.client.withSession((session) =>
+        session.withTransaction(async () => {
+          const changed = await dishes.findOneAndUpdate(
+            { _id: req.params.id, available: input.expectedAvailable },
+            { $set: { available: input.available, updatedAt: new Date() } },
+            { session, returnDocument: "after" },
+          );
+          if (!changed)
+            throw new HttpError(
+              409,
+              "MENU_UPDATED",
+              "Availability changed. Refresh the menu and try again.",
+            );
+          await store.audit.insertOne(
+            {
+              type: "dish.availability",
+              dishId: changed._id,
+              available: input.available,
+              by: req.staff.username,
+              at: new Date(),
+            },
+            { session },
+          );
+          return changed;
+        }),
+      );
+      res.json({ dish: normalizeDish(dish) });
+    },
+  );
   staffApi.patch("/menu/:id", requireAdmin, async (req, res) => {
     const changes = body(dishEditInput, req.body);
     const dish = await dishes.findOneAndUpdate(
@@ -584,14 +584,12 @@ export function createApp(store, config, frontendMiddleware) {
   registerStaffFeatures(staffApi, store, config, requireAdmin, requireId);
   api.use("/staff", staffApi);
   api.use((req, res) =>
-    res
-      .status(404)
-      .json({
-        error: {
-          code: "NOT_FOUND",
-          message: "This endpoint could not be found.",
-        },
-      }),
+    res.status(404).json({
+      error: {
+        code: "NOT_FOUND",
+        message: "This endpoint could not be found.",
+      },
+    }),
   );
   app.use("/api", api);
 
