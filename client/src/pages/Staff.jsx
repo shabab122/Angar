@@ -25,6 +25,7 @@ import { api, dhakaTime } from "../lib/api";
 import { useResource } from "../lib/useResource";
 import { Button, ErrorMessage, Eyebrow, Loading, Logo } from "../components/UI";
 import { AvailabilityPanel, SalesReportsPanel } from "../components/Operations";
+import { ReservationDesk, CouponsPanel, GatewayPanel } from "./CommerceStaff";
 import {
   BillingPanel,
   EventsPanel,
@@ -50,6 +51,9 @@ const navigation = [
   ["menu", MenuSquare, "Menu studio", ["admin"]],
   ["availability", MenuSquare, "Food availability", ["admin", "kitchen"]],
   ["reports", CircleDollarSign, "Sales reports", ["admin", "cashier"]],
+  ["reservations", CalendarDays, "Reservations & queue", ["admin", "waiter"]],
+  ["coupons", MenuSquare, "Coupons & loyalty", ["admin"]],
+  ["gateway", CircleDollarSign, "Online payments", ["admin", "cashier"]],
   ["settings", Settings2, "Restaurant settings", ["admin"]],
 ];
 
@@ -457,6 +461,9 @@ export function Dashboard({ user, onSignedOut }) {
           {tab === "menu" && <MenuPanel {...common} />}
           {tab === "availability" && <AvailabilityPanel {...common} />}
           {tab === "reports" && <SalesReportsPanel />}
+          {tab === "reservations" && <ReservationDesk {...common} />}
+          {tab === "coupons" && <CouponsPanel {...common} />}
+          {tab === "gateway" && <GatewayPanel {...common} />}
           {tab === "settings" && <SettingsPanel {...common} />}
         </main>
       </div>

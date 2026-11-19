@@ -2,6 +2,7 @@ import { z } from "zod";
 import { body, HttpError } from "./http.js";
 import { ACTIONS, lockAvailableDishes, orderView } from "./orders.js";
 import { getGuest, hash } from "./security.js";
+import { orderOwner } from "./customer.js";
 
 const reason = z.string().trim().min(3).max(160);
 const base = { expectedRevision: z.number().int().min(0), reason };
@@ -175,7 +176,7 @@ export function registerGuestOrderChanges(api, store, config, requireId) {
     const fingerprint = hash(JSON.stringify(input));
     const result = await transaction(store, async (session) => {
       const order = await store.orders.findOne(
-        { _id: id, guestHash },
+        { _id: id, ...orderOwner(req, guestHash) },
         { session },
       );
       if (!order)

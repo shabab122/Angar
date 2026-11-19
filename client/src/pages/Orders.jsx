@@ -25,6 +25,7 @@ import {
   Status,
 } from "../components/UI";
 import { TableNotice } from "./Menu";
+import { GuestTableBill } from "../components/Financial";
 import { GuestOrderChanges } from "../components/Operations";
 
 export function Orders() {
@@ -34,10 +35,18 @@ export function Orders() {
   const [tab, setTab] = useState(
     params.get("tab") === "events" ? "events" : "orders",
   );
-  const resource = useResource(tab === "events" ? "/events" : "/orders", {
-    enabled: contextReady,
-    interval: 4000,
-  });
+  const resource = useResource(
+    tab === "events"
+      ? "/events"
+      : "/orders" +
+          (params.get("order")
+            ? "?id=" + encodeURIComponent(params.get("order"))
+            : ""),
+    {
+      enabled: contextReady,
+      interval: 4000,
+    },
+  );
   const [review, setReview] = useState(null);
   const [accepting, setAccepting] = useState(null);
   async function accept(event) {
@@ -71,6 +80,7 @@ export function Orders() {
         </p>
       </div>
       <TableNotice compact />
+      {tab === "orders" && <GuestTableBill />}
       <div className="page-tabs">
         <button
           type="button"
@@ -101,8 +111,8 @@ export function Orders() {
           <div className="guest-orders">
             <p className="orders-browser-note">
               {t(
-                "Recent orders placed in this browser. Updates arrive automatically.",
-                "এই ব্রাউজার থেকে দেওয়া সাম্প্রতিক অর্ডার। অবস্থা নিজে থেকেই বদলাবে।",
+                "Your account or browser’s recent orders. Updates arrive automatically.",
+                "আপনার অ্যাকাউন্ট বা এই ব্রাউজারের সাম্প্রতিক অর্ডার। অবস্থা নিজে থেকেই বদলাবে।",
               )}
             </p>
             {resource.data.orders.map((order) => (

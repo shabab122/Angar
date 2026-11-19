@@ -36,6 +36,7 @@ import {
   Status,
 } from "../components/UI";
 import { Receipt } from "./Receipt";
+import { CounterBillDialog } from "../components/Financial";
 import {
   isDelayed,
   OrderTimer,
@@ -709,6 +710,7 @@ export function BillingPanel({ notify, onRefresh }) {
   const action = useAction(notify);
   const [payment, setPayment] = useState(null);
   const [receipt, setReceipt] = useState(null);
+  const [clearing, setClearing] = useState(null);
   async function finalize(table) {
     const result = await action.run(
       () =>
@@ -719,7 +721,10 @@ export function BillingPanel({ notify, onRefresh }) {
       "Table bill finalized.",
       () => resource.reload(),
     );
-    if (result.ok) setPayment(result.value.bill);
+    if (result.ok) {
+      if (result.value.bill.status === "paid") setReceipt(result.value.bill);
+      else setPayment(result.value.bill);
+    }
     onRefresh();
   }
   return (
@@ -804,6 +809,15 @@ export function BillingPanel({ notify, onRefresh }) {
                       Finalize table bill
                       <ArrowRight size={16} />
                     </Button>
+                    {table.hasPromotion && (
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => setClearing(table.number)}
+                      >
+                        Clear selected coupon / points with a reason
+                      </button>
+                    )}
                     <p className="form-help">
                       {ready
                         ? "Finalizing locks this visit against new orders."
@@ -826,7 +840,7 @@ export function BillingPanel({ notify, onRefresh }) {
         <div className="panel-heading">
           <div>
             <h2>Settled receipts</h2>
-            <p>Latest payments recorded at the restaurant</p>
+            <p>Latest settled table bills</p>
           </div>
         </div>
         {resource.data?.recent.length ? (
@@ -872,15 +886,36 @@ export function BillingPanel({ notify, onRefresh }) {
         )}
       </section>
       {payment && (
-        <PaymentModal
+        <CounterBillDialog
           bill={payment}
           onClose={() => setPayment(null)}
           onDone={(bill) => {
-            setPayment(null);
-            setReceipt(bill);
-            notify("Payment recorded and table visit closed.");
+            if (bill.status === "paid") {
+              setPayment(null);
+              setReceipt(bill);
+              notify("Payment recorded and table visit closed.");
+            } else {
+              setPayment(bill);
+              notify(
+                "Partial payment recorded. The remaining balance stays open.",
+              );
+            }
             void resource.reload();
             onRefresh();
+          }}
+        />
+      )}
+      {clearing && (
+        <ReasonModal
+          request={{
+            path: "/staff/tables/" + clearing + "/clear-promotions",
+            data: {},
+            title: "Clear selected table benefits",
+          }}
+          onClose={() => setClearing(null)}
+          onDone={() => {
+            setClearing(null);
+            void resource.reload();
           }}
         />
       )}
@@ -897,101 +932,6 @@ export function BillingPanel({ notify, onRefresh }) {
     </PanelState>
   );
 }
-function PaymentModal({ bill, onClose, onDone }) {
-  const { money } = useApp();
-  const [values, setValues] = useState({
-    method: "cash",
-    reference: "",
-    verified: false,
-  });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      const result = await api("/staff/bills/" + bill.id + "/pay", {
-        method: "POST",
-        data: values,
-      });
-      onDone(result.bill);
-    } catch (failure) {
-      setError(failure.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title={"Settle Table " + bill.tableNumber.slice(1)}
-      className="small-dialog"
-    >
-      <form className="form-stack" onSubmit={submit}>
-        <div className="payment-amount">
-          <small>Final table total</small>
-          <strong>{money(bill.total)}</strong>
-          <span>
-            Food {money(bill.subtotal)} · Service {money(bill.charge)}
-          </span>
-        </div>
-        <label>
-          Payment received by
-          <select
-            value={values.method}
-            onChange={(event) =>
-              setValues({ ...values, method: event.target.value })
-            }
-          >
-            <option value="cash">Cash</option>
-            <option value="bkash">bKash at counter</option>
-            <option value="nagad">Nagad at counter</option>
-            <option value="card">Card terminal</option>
-          </select>
-        </label>
-        <label>
-          Reference {values.method === "cash" ? "(optional)" : ""}
-          <input
-            required={values.method !== "cash"}
-            maxLength={100}
-            value={values.reference}
-            onChange={(event) =>
-              setValues({ ...values, reference: event.target.value })
-            }
-          />
-        </label>
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            required
-            checked={values.verified}
-            onChange={(event) =>
-              setValues({ ...values, verified: event.target.checked })
-            }
-          />
-          <span>
-            I checked that the full payment was received at the restaurant.
-          </span>
-        </label>
-        {error && <ErrorMessage>{error}</ErrorMessage>}
-        <button
-          className="button button-primary"
-          disabled={busy || !values.verified}
-          type="submit"
-        >
-          Record payment & close visit
-          <CheckCircle2 size={17} />
-        </button>
-        <p className="form-help">
-          This records a payment you have already verified at the counter.
-        </p>
-      </form>
-    </Modal>
-  );
-}
-
 export function ReviewsPanel({ notify, onRefresh }) {
   const resource = useResource("/staff/reviews");
   const action = useAction(notify);

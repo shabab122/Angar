@@ -25,6 +25,15 @@ import {
   registerStaffOrderChanges,
 } from "./order-changes.js";
 import { registerReports } from "./reports.js";
+import { registerCustomers, orderOwner } from "./customer.js";
+import { registerGuestRewards, registerStaffRewards } from "./rewards.js";
+import { registerGuestBills } from "./commerce.js";
+import { registerSplitBills } from "./payments.js";
+import { registerGuestGateway, registerStaffGateway } from "./gateway.js";
+import {
+  registerGuestReservations,
+  registerStaffReservations,
+} from "./reservations.js";
 
 function allowRoles(...roles) {
   return (req, res, next) => {
@@ -41,12 +50,23 @@ function allowRoles(...roles) {
 const paymentInput = z.strictObject({
   method: z.enum(["cash", "bkash", "nagad", "card"]),
   reference: z.string().trim().max(100).default(""),
+  amountMinor: z.number().int().positive().optional(),
+  splitId: z.string().max(32).optional(),
+  requestKey: z
+    .string()
+    .regex(/^[a-f0-9]{32}$/)
+    .optional(),
   verified: z.literal(true, {
     error: "Verify the payment at the counter before recording it.",
   }),
 });
 
 export function registerGuestFeatures(api, store, config, requireId) {
+  registerCustomers(api, store, config, requireId);
+  registerGuestRewards(api, store, config);
+  registerGuestBills(api, store, config, requireId);
+  registerGuestGateway(api, store, config, requireId);
+  registerGuestReservations(api, store, config, requireId);
   api.get("/restaurant", async (req, res) =>
     res.json({ restaurant: publicSettings(await restaurantSettings(store)) }),
   );
@@ -91,7 +111,10 @@ export function registerGuestFeatures(api, store, config, requireId) {
     if (!bill)
       throw new HttpError(404, "NOT_FOUND", "This receipt could not be found.");
     const ownOrder = await store.orders.findOne(
-      { _id: { $in: bill.orderIds }, guestHash: getGuest(req, res, config) },
+      {
+        _id: { $in: bill.orderIds },
+        ...orderOwner(req, getGuest(req, res, config)),
+      },
       { projection: { _id: 1 } },
     );
     if (!ownOrder)
@@ -115,7 +138,7 @@ export function registerGuestFeatures(api, store, config, requireId) {
         );
       const order = await store.orders.findOne({
         _id: orderId,
-        guestHash: getGuest(req, res, config),
+        ...orderOwner(req, getGuest(req, res, config)),
         status: "served",
       });
       const review =
@@ -206,6 +229,10 @@ export function registerStaffFeatures(
 ) {
   const billingRoles = allowRoles("admin", "cashier");
   const floorRoles = allowRoles("admin", "waiter");
+  registerStaffRewards(api, store, requireAdmin, billingRoles);
+  registerSplitBills(api, store, billingRoles, requireId);
+  registerStaffGateway(api, store, config, billingRoles, requireAdmin);
+  registerStaffReservations(api, store, floorRoles, requireAdmin, requireId);
 
   api.get("/overview", async (req, res) => {
     const today = new Intl.DateTimeFormat("en-CA", {
@@ -295,6 +322,7 @@ export function registerStaffFeatures(
         orders: orders
           .filter((order) => order.visitId.equals(table.activeVisitId))
           .map((order) => orderView(order, true)),
+        hasPromotion: Boolean(table.promotion),
         bill: bills.find((bill) => bill.visitId.equals(table.activeVisitId))
           ? billView(
               bills.find((bill) => bill.visitId.equals(table.activeVisitId)),
@@ -309,6 +337,12 @@ export function registerStaffFeatures(
   });
   api.post("/bills/:id/pay", billingRoles, async (req, res) => {
     const input = body(paymentInput, req.body);
+    if ((input.amountMinor !== undefined || input.splitId) && !input.requestKey)
+      throw new HttpError(
+        400,
+        "INVALID_KEY",
+        "Partial/split receipts require a unique payment key.",
+      );
     if (input.method !== "cash" && !input.reference)
       throw new HttpError(
         400,

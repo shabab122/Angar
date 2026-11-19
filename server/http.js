@@ -131,11 +131,9 @@ export function errorHandler(error, req, res, next) {
     error.type === "entity.parse.failed" ||
     error.type === "entity.too.large"
   ) {
-    return res
-      .status(error.status)
-      .json({
-        error: { code: "INVALID_BODY", message: "Invalid request body." },
-      });
+    return res.status(error.status).json({
+      error: { code: "INVALID_BODY", message: "Invalid request body." },
+    });
   }
   console.error(
     "Request failed:",

@@ -456,7 +456,7 @@ export function SalesReportsPanel() {
                 </table>
               </div>
               <h3 className="report-dishes-heading">Popular dishes</h3>
-              <p>Ranked by quantity · Food sales before service charges</p>
+              <p>Ranked by quantity · Gross dish values before discounts and service charges</p>
               <div className="report-table-scroll">
                 <table>
                   <thead>
