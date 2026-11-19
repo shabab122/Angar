@@ -26,6 +26,10 @@ import { useResource } from "../lib/useResource";
 import { Button, ErrorMessage, Eyebrow, Loading, Logo } from "../components/UI";
 import { AvailabilityPanel, SalesReportsPanel } from "../components/Operations";
 import { ReservationDesk, CouponsPanel, GatewayPanel } from "./CommerceStaff";
+import { RefundsPanel } from "./RefundsPanel";
+import { StaffAccounts, StaffPassword } from "./StaffAccounts";
+import { InventoryPanel } from "./InventoryPanel";
+import { InvoiceSettings } from "./InvoiceSettings";
 import {
   BillingPanel,
   EventsPanel,
@@ -54,6 +58,16 @@ const navigation = [
   ["reservations", CalendarDays, "Reservations & queue", ["admin", "waiter"]],
   ["coupons", MenuSquare, "Coupons & loyalty", ["admin"]],
   ["gateway", CircleDollarSign, "Online payments", ["admin", "cashier"]],
+  ["refunds", CircleDollarSign, "Refunds & credit notes", ["admin", "cashier"]],
+  ["team", ShieldCheck, "Staff accounts", ["admin"]],
+  ["inventory", MenuSquare, "Ingredients & recipes", ["admin", "kitchen"]],
+  ["invoices", Settings2, "Tax & invoices", ["admin"]],
+  [
+    "access",
+    ShieldCheck,
+    "My access",
+    ["admin", "cashier", "kitchen", "waiter"],
+  ],
   ["settings", Settings2, "Restaurant settings", ["admin"]],
 ];
 
@@ -82,6 +96,8 @@ export function Staff() {
         <Loading label="Opening your workspace…" />
       </div>
     );
+  if (user?.mustChangePassword)
+    return <StaffPassword required onSignedOut={() => setUser(null)} />;
   return user ? (
     <Dashboard user={user} onSignedOut={() => setUser(null)} />
   ) : (
@@ -464,6 +480,11 @@ export function Dashboard({ user, onSignedOut }) {
           {tab === "reservations" && <ReservationDesk {...common} />}
           {tab === "coupons" && <CouponsPanel {...common} />}
           {tab === "gateway" && <GatewayPanel {...common} />}
+          {tab === "refunds" && <RefundsPanel {...common} />}
+          {tab === "team" && <StaffAccounts />}
+          {tab === "inventory" && <InventoryPanel {...common} />}
+          {tab === "invoices" && <InvoiceSettings />}
+          {tab === "access" && <StaffPassword onSignedOut={onSignedOut} />}
           {tab === "settings" && <SettingsPanel {...common} />}
         </main>
       </div>

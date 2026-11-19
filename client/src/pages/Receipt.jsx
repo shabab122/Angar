@@ -32,6 +32,25 @@ export function Receipt({ staff = false, bill: provided }) {
           {t("TABLE RECEIPT", "টেবিলের রসিদ")}
         </span>
         <h1>{bill.receiptNo}</h1>
+        {bill.invoice && (
+          <div className="invoice-business">
+            <strong>{bill.invoice.businessName}</strong>
+            <p>{bill.invoice.address}</p>
+            {(bill.invoice.phone || bill.invoice.email) && (
+              <p>
+                {[bill.invoice.phone, bill.invoice.email]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+            {bill.invoice.taxRegistration && (
+              <p>
+                {t("Tax registration: ", "কর নিবন্ধন: ")}
+                {bill.invoice.taxRegistration}
+              </p>
+            )}
+          </div>
+        )}
         <div className="receipt-meta">
           <span>{t("Table ", "টেবিল ") + bill.tableNumber.slice(1)}</span>
           <span>{dhakaTime(bill.createdAt, false, language)}</span>
@@ -80,6 +99,15 @@ export function Receipt({ staff = false, bill: provided }) {
             </dt>
             <dd>{money(bill.charge)}</dd>
           </div>
+          {bill.tax > 0 && (
+            <div>
+              <dt>
+                {bill.taxLabel} ({bill.taxRateBps / 100}%)
+                {bill.taxIncluded ? t(" · included", " · অন্তর্ভুক্ত") : ""}
+              </dt>
+              <dd>{money(bill.tax)}</dd>
+            </div>
+          )}
           <div className="receipt-grand">
             <dt>{t("Total", "মোট")}</dt>
             <dd>{money(bill.total)}</dd>
@@ -104,11 +132,19 @@ export function Receipt({ staff = false, bill: provided }) {
           </p>
         )}
         <PaymentLedger bill={bill} />
+        {bill.refundedMinor > 0 && (
+          <p className="receipt-reference">
+            {t("Refunded / retained: ", "ফেরত / রাখা হয়েছে: ")}
+            {money(bill.refundedMinor / 100)} /{" "}
+            {money(bill.netCollectedMinor / 100)}
+          </p>
+        )}
         <p className="receipt-thanks">
-          {t(
-            "Thank you for sharing your table with us.",
-            "আমাদের সঙ্গে সময় কাটানোর জন্য ধন্যবাদ।",
-          )}
+          {bill.invoice?.footer ||
+            t(
+              "Thank you for sharing your table with us.",
+              "আমাদের সঙ্গে সময় কাটানোর জন্য ধন্যবাদ।",
+            )}
         </p>
         <div className="receipt-print">
           <Button secondary onClick={() => window.print()}>

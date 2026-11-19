@@ -89,7 +89,11 @@ export async function promotionTotals(
         "The food subtotal is below this coupon's minimum spend.",
       );
     const used = await store.couponRedemptions.countDocuments(
-      { couponCode: coupon._id, customerId: customer._id },
+      {
+        couponCode: coupon._id,
+        customerId: customer._id,
+        reversed: { $ne: true },
+      },
       { session },
     );
     if (
@@ -130,7 +134,7 @@ export async function promotionTotals(
   const maximum = Math.floor(
     ((subtotalMinor - couponDiscountMinor) * 20) / 100 / 100,
   );
-  if (points > Math.min(customer.points || 0, maximum))
+  if (points > Math.min(Math.max(0, customer.points || 0), maximum))
     throw new HttpError(
       409,
       "POINTS_UNAVAILABLE",
@@ -181,7 +185,7 @@ export async function awardLoyalty(store, bill, session) {
   if (!groups.size) return;
   const keys = [...groups.keys()].sort();
   const net = allocateMinor(
-    bill.netSubtotalMinor ?? bill.subtotalMinor,
+    bill.accountingFoodMinor ?? bill.netSubtotalMinor ?? bill.subtotalMinor,
     keys.map((key) => groups.get(key)),
   );
   for (let i = 0; i < keys.length; i++) {

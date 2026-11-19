@@ -102,6 +102,13 @@ export function gatewayClient(config) {
         tran_id: intent._id,
         format: "json",
       }),
+    refund: (fields) =>
+      call("/validator/api/merchantTransIDvalidationAPI.php", fields),
+    refundStatus: (reference) =>
+      call("/validator/api/merchantTransIDvalidationAPI.php", {
+        refund_ref_id: reference,
+        format: "json",
+      }),
   };
 }
 

@@ -1,11 +1,29 @@
-# Angar Kitchen · React v2.2
+# Angar Kitchen · React v2.3
 
 বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
 
 **প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
 
 
-## v2.2 — এই release-এর পাঁচটি নতুন ফিচার
+## v2.3 — এই release-এর পাঁচটি নতুন ফিচার
+
+**Base: Angar_Kitchen_React_v2.2.zip।** শুধু নির্বাচিত সংযোজন ও প্রয়োজনীয় integration hooks; পুরোনো guest pages/assets/design, tech stack ও workflows রাখা হয়েছে।
+
+| ফিচার | ব্যবহার |
+|---|---|
+| Email verification / recovery | My account → verification email; Sign in → Forgot password। Expiring single-use links, secure reset ও session revocation। SMTP configure করতে হবে; local-only private outbox test mode আছে। |
+| Full / partial refunds | Admin/cashier → Refunds & credit notes। Original settled receipt অনুযায়ী request, admin approval, confirmed return/provider reconciliation, credit notes, loyalty/coupon adjustments। |
+| Staff accounts | Admin → Staff accounts। Individual users, role/active control, temporary password reset। All roles → My access। New temporary accounts নিজের password না দেওয়া পর্যন্ত workspace খুলতে পারে না। |
+| Ingredient inventory | Admin/kitchen → Ingredients & recipes। Base units, receive/waste/corrections, low-stock alerts, base/size/add-on recipes ও immutable stock movements। Acceptance/approved edits/cancellation-এর সঙ্গে transaction-এ stock মেলে। |
+| Tax/VAT / invoices | Admin → Tax & invoices। Inclusive/exclusive tax, configurable base/rate, invoice identity, prefix/sequence, immutable invoice snapshots ও tax credit notes। Tax default বন্ধ। |
+
+**v2.2 থেকে upgrade:** পুরোনো app বন্ধ করে নতুন ZIP আলাদা folder-এ extract করুন। আগের `.env`, database connection ও uploaded photos রাখুন। MongoDB চালু রেখে নতুন folder-এ `npm ci`, `npm run setup`, `npm run build`, `npm start`। Existing data-তে seed/reset লাগবে না; নতুন optional fields/collections/indexes নিজে তৈরি হয়।
+
+পুরোনো staff accounts/passwords, QR codes, unpaid/paid bills ও accounts রাখা হয়। Tax default ০/disabled, কোনো অনুমান করা recipe seed হয় না, পুরোনো queued order-এ stock retroactively কাটা হয় না। Full Bengali setup, SMTP/outbox, refunds, stock timing, tax rules ও acceptance guide: **`UPGRADE_v2.3_BN.md`**।
+
+Real SMTP এবং real merchant sandbox/live payment/refund আপনার credentials দিয়ে configure ও acceptance-test করতে হবে। এই deliverable-এ controlled email/provider tests রয়েছে; কোনো বাস্তব অর্থ transfer বা mailbox delivery দাবি করা হয়নি।
+
+## v2.2-এর সংরক্ষিত ফিচার
 
 **Base: Angar_Kitchen_React_v2.1.zip।** আগের brand/design, React–Express–MongoDB stack, QR ordering, kitchen/floor flow, reviews ও events রেখে যোগ হয়েছে:
 
@@ -140,7 +158,7 @@ npm run tables -- T01
 | Admin | Live overview, paid sales reports/CSV, menu create/edit, kitchen availability controls, ordering pause, restaurant settings, role-based queues |
 | Menu guide | Budget, group size ও spice অনুযায়ী বর্তমান মেনু থেকে deterministic matching; external AI service লাগে না |
 
-**পরবর্তী integration/কাজ:** automatic refunds, delivery/pickup, POS/printer, external AI chatbot, multi-branch/multi-tenant SaaS, staff account management UI ও event configuration editor। Menu guide-কে AI বলা হয়নি। Counter-এর bKash/Nagad/card selection বাস্তবে পাওয়া টাকা **রেকর্ড** করে; online টাকা কাটার জন্য পৃথক SSLCOMMERZ checkout আছে। Event deposit-ও staff-এর verified record। Accepted/deposited event-এর cancellation/refund automation নেই।
+**পরবর্তী integration/কাজ:** delivery/pickup, POS/printer, external AI chatbot, multi-branch/multi-tenant SaaS, event configuration editor এবং event-deposit/overpayment refund workflows। Table-bill refunds ও staff account UI v2.3-তে আছে। Menu guide-কে AI বলা হয়নি। Counter-এর bKash/Nagad/card selection বাস্তবে পাওয়া টাকা **রেকর্ড** করে; online টাকা কাটার জন্য পৃথক SSLCOMMERZ checkout আছে। Event deposit-ও staff-এর verified record। Accepted/deposited event-এর cancellation/refund automation নেই।
 
 প্রথম বিক্রির আগে restaurant-specific menu/fees, staff workflow, event terms, legal/tax rules ও বাস্তব devices দিয়ে acceptance test প্রয়োজন। এটি চালানো যায় এমন প্রথম product version; production hosting, merchant onboarding ও operational approval আলাদা কাজ।
 
@@ -190,6 +208,9 @@ npm run dev
 | `server/payments.js`, `bill-view.js`, `money.js` | Payment ledger, splits, exact paisa allocation and views |
 | `server/gateway.js`, `commerce.js` | SSLCOMMERZ checkout/verification, IPN, bill ownership |
 | `server/reservations.js` | Table booking, availability, waiting list and seating |
+| `server/account-mail.js`, `staff-accounts.js` | Verification/recovery mail, one-use tokens, individual staff and session revocation |
+| `server/refunds.js`, `invoices.js` | Approved receipt refunds, provider reconciliation, credit notes, tax/invoice snapshots |
+| `server/inventory.js` | Ingredient stocks, recipes, kitchen commitment, changes/releases and movement ledger |
 | `server/events.js` | Requests, quotes, expiring slot holds ও deposit records |
 | `server/security.js` | Password hashing, signed cookies, staff sessions |
 | `server/db.js`, `restaurant.js` | Collections/indexes ও settings/defaults |
@@ -218,7 +239,7 @@ Ready server `{"status":"ok"}` দেখাবে। Linux/macOS-এ `curl` ব�
 
 Photo সর্বোচ্চ 4 MB / 16 megapixels; server decode করে 1200px-এর মধ্যে WebP হিসেবে metadata ছাড়া আবার তৈরি করে। শুধু approved public photo public endpoint দেয়। Photo processing ব্যর্থ হলেও saved text feedback থাকে।
 
-QR link share করা সম্ভব; active session চলাকালে staff টেবিল মিলিয়ে order accept করবেন। Browser data clear করলে guest history/review access হারাতে পারেন। Tax/VAT hard-code করা হয়নি; service charge configurable, default 0%।
+QR link share করা সম্ভব; active session চলাকালে staff টেবিল মিলিয়ে order accept করবেন। Browser data clear করলে guest history/review access হারাতে পারেন। Tax/VAT ও service charge configurable, default ০/disabled; নিজের প্রযোজ্য tax rate/BIN configure করুন। পুরোনো `UPGRADE_v2.1_BN.md` ও `UPGRADE_v2.2_BN.md` historical release guides; বর্তমান feature rules-এর জন্য v2.3 guide পড়ুন।
 
 ## সাধারণ সমস্যা
 

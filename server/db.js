@@ -21,6 +21,11 @@ export async function connectDatabase(config) {
       eventLocks: db.collection("eventLocks"),
       serviceRequests: db.collection("serviceRequests"),
       customers: db.collection("customers"),
+      accountTokens: db.collection("accountTokens"),
+      refunds: db.collection("refunds"),
+      ingredients: db.collection("ingredients"),
+      recipes: db.collection("recipes"),
+      stockMovements: db.collection("stockMovements"),
       customerSessions: db.collection("customerSessions"),
       coupons: db.collection("coupons"),
       couponRedemptions: db.collection("couponRedemptions"),
@@ -72,6 +77,25 @@ export async function connectDatabase(config) {
     ]);
     await Promise.all([
       collections.customers.createIndex({ email: 1 }, { unique: true }),
+      collections.accountTokens.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 },
+      ),
+      collections.accountTokens.createIndex({ customerId: 1, purpose: 1 }),
+      collections.refunds.createIndex({ clientKey: 1 }, { unique: true }),
+      collections.refunds.createIndex({ billId: 1, status: 1 }),
+      collections.refunds.createIndex(
+        { mode: 1, merchantKey: 1, providerReference: 1 },
+        {
+          unique: true,
+          partialFilterExpression: { providerReference: { $type: "string" } },
+        },
+      ),
+      collections.refunds.createIndex({ refundedAt: -1 }),
+      collections.ingredients.createIndex({ nameKey: 1 }, { unique: true }),
+      collections.stockMovements.createIndex({ key: 1 }, { unique: true }),
+      collections.stockMovements.createIndex({ ingredientId: 1, at: -1 }),
+      collections.stockMovements.createIndex({ at: -1 }),
       collections.customerSessions.createIndex(
         { expiresAt: 1 },
         { expireAfterSeconds: 0 },

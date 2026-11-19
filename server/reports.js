@@ -55,15 +55,30 @@ export async function salesReport(store, window) {
       },
       {
         $facet: {
+          taxes: [
+            {
+              $group: {
+                _id: null,
+                taxMinor: { $sum: { $ifNull: ["$taxMinor", 0] } },
+              },
+            },
+          ],
           summary: [
             {
               $group: {
                 _id: null,
                 revenueMinor: { $sum: "$totalMinor" },
                 subtotalMinor: {
-                  $sum: { $ifNull: ["$netSubtotalMinor", "$subtotalMinor"] },
+                  $sum: {
+                    $ifNull: [
+                      "$accountingFoodMinor",
+                      { $ifNull: ["$netSubtotalMinor", "$subtotalMinor"] },
+                    ],
+                  },
                 },
-                serviceChargeMinor: { $sum: "$chargeMinor" },
+                serviceChargeMinor: {
+                  $sum: { $ifNull: ["$accountingChargeMinor", "$chargeMinor"] },
+                },
                 bills: { $sum: 1 },
               },
             },
@@ -164,7 +179,35 @@ export async function salesReport(store, window) {
       );
     emitted.add(label);
   }
+  const [refunds] = await store.refunds
+    .aggregate([
+      {
+        $match: {
+          status: "refunded",
+          refundedAt: { $gte: window.startAt, $lt: window.endAt },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          amountMinor: { $sum: "$amountMinor" },
+          taxMinor: { $sum: "$creditNote.taxMinor" },
+          count: { $sum: 1 },
+        },
+      },
+    ])
+    .toArray();
+  const accounting = {
+    taxMinor: data?.taxes?.[0]?.taxMinor || 0,
+    refundsMinor: refunds?.amountMinor || 0,
+    refundCount: refunds?.count || 0,
+    taxRefundedMinor: refunds?.taxMinor || 0,
+  };
+  accounting.afterRefundsMinor = summary.revenueMinor - accounting.refundsMinor;
+  accounting.taxAfterRefundsMinor =
+    accounting.taxMinor - accounting.taxRefundedMinor;
   return {
+    accounting,
     window: {
       start: window.start,
       end: window.end,
@@ -208,6 +251,10 @@ export function reportCsv(report, section) {
         "Service charges BDT",
         "Collected BDT",
         "Average bill BDT",
+        "Tax collected BDT",
+        "Refunds given BDT",
+        "Collected minus refunds BDT",
+        "Tax refunded BDT",
       ],
       [
         report.window.start,
@@ -217,6 +264,10 @@ export function reportCsv(report, section) {
         amount(report.summary.serviceChargeMinor),
         amount(report.summary.revenueMinor),
         amount(report.summary.averageBillMinor),
+        amount(report.accounting.taxMinor),
+        amount(report.accounting.refundsMinor),
+        amount(report.accounting.afterRefundsMinor),
+        amount(report.accounting.taxRefundedMinor),
       ],
     ],
     periods: [

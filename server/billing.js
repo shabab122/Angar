@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { HttpError } from "./http.js";
 import { ACTIVE } from "./orders.js";
@@ -6,6 +5,11 @@ import { restaurantSettings } from "./restaurant.js";
 import { promotionTotals } from "./rewards.js";
 import { finishBill } from "./payments.js";
 import { billView } from "./bill-view.js";
+import {
+  financialTotals,
+  invoiceSnapshot,
+  nextReceiptNumber,
+} from "./invoices.js";
 export { billView } from "./bill-view.js";
 export { settleBill } from "./payments.js";
 
@@ -62,12 +66,11 @@ export async function finalizeBill(store, tableNumber, user) {
           session,
           billId,
         );
-        const chargeMinor = Math.round(
-          (promotion.netSubtotalMinor * settings.serviceChargeBps) / 10000,
-        );
+        const totals = financialTotals(promotion.netSubtotalMinor, settings);
         const bill = {
           _id: billId,
-          receiptNo: "AK-" + randomBytes(6).toString("hex").toUpperCase(),
+          receiptNo: await nextReceiptNumber(store, settings, session),
+          invoice: invoiceSnapshot(settings),
           tableId: table._id,
           tableNumber,
           visitId: table.activeVisitId,
@@ -94,9 +97,8 @@ export async function finalizeBill(store, tableNumber, user) {
           status: "finalized",
           serviceChargeBps: settings.serviceChargeBps,
           subtotalMinor,
-          chargeMinor,
           ...promotion,
-          totalMinor: promotion.netSubtotalMinor + chargeMinor,
+          ...totals,
           paidMinor: 0,
           payments: [],
           holds: [],

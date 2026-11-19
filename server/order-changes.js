@@ -3,6 +3,7 @@ import { body, HttpError } from "./http.js";
 import { ACTIONS, lockAvailableDishes, orderView } from "./orders.js";
 import { getGuest, hash } from "./security.js";
 import { orderOwner } from "./customer.js";
+import { reserveOrderInventory, changeOrderInventory } from "./inventory.js";
 
 const reason = z.string().trim().min(3).max(160);
 const base = { expectedRevision: z.number().int().min(0), reason };
@@ -86,6 +87,27 @@ export async function moveOrder(store, id, action, reasonText, user) {
     await lockVisit(store, order, session);
     const now = new Date();
     const set = { status: step.to, updatedAt: now };
+    if (action === "send")
+      set.inventory = await reserveOrderInventory(
+        store,
+        order,
+        session,
+        user.username,
+      );
+    if (action === "start" && order.inventory)
+      set.inventory = {
+        ...order.inventory,
+        state: "consumed",
+        consumedAt: now,
+      };
+    if (action === "reject" && order.inventory?.state === "reserved")
+      set.inventory = await changeOrderInventory(
+        store,
+        order,
+        [],
+        session,
+        user.username,
+      );
     if (pending(order))
       set.changeRequest = {
         ...order.changeRequest,
@@ -128,6 +150,14 @@ export async function cancelBeforeCooking(store, id, reasonText, user) {
     await lockVisit(store, order, session);
     const now = new Date();
     const set = { status: "cancelled", updatedAt: now };
+    if (order.inventory?.state === "reserved")
+      set.inventory = await changeOrderInventory(
+        store,
+        order,
+        [],
+        session,
+        user.username,
+      );
     if (pending(order))
       set.changeRequest = {
         ...order.changeRequest,
@@ -357,6 +387,14 @@ export function registerStaffOrderChanges(api, store, requireAdmin, requireId) {
         };
         const set = { changeRequest: decided, updatedAt: now };
         if (status === "approved") {
+          if (order.inventory?.state === "reserved")
+            set.inventory = await changeOrderInventory(
+              store,
+              order,
+              change.type === "cancel" ? [] : change.items,
+              session,
+              req.staff.username,
+            );
           if (change.type === "cancel") set.status = "cancelled";
           else
             Object.assign(set, {

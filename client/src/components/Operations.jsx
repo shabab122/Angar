@@ -369,6 +369,12 @@ export function SalesReportsPanel() {
               ["Food sales", data.summary.subtotalMinor],
               ["Service charges", data.summary.serviceChargeMinor],
               ["Average paid bill", data.summary.averageBillMinor],
+              ["Tax collected", data.accounting?.taxMinor || 0],
+              ["Refunds given", data.accounting?.refundsMinor || 0],
+              [
+                "Collected minus refunds",
+                data.accounting?.afterRefundsMinor ?? data.summary.revenueMinor,
+              ],
             ].map(([label, amount]) => (
               <article key={label}>
                 <span>{label}</span>
@@ -381,6 +387,12 @@ export function SalesReportsPanel() {
             </article>
           </div>
           <div className="report-downloads">
+            <p className="commerce-note">
+              Original paid sales remain on their settlement date. Refunds use
+              the date money was returned, so collected minus refunds can be
+              negative. Food/service figures exclude separately recorded tax.
+              This is not a tax filing or profit report.
+            </p>
             {[
               ["summary", "Summary"],
               ["periods", "Daily / monthly"],
@@ -456,7 +468,10 @@ export function SalesReportsPanel() {
                 </table>
               </div>
               <h3 className="report-dishes-heading">Popular dishes</h3>
-              <p>Ranked by quantity · Gross dish values before discounts and service charges</p>
+              <p>
+                Ranked by quantity · Gross dish values before discounts and
+                service charges
+              </p>
               <div className="report-table-scroll">
                 <table>
                   <thead>

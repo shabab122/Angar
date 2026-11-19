@@ -20,6 +20,20 @@ export function loadConfig(env = process.env) {
   }
 
   const production = env.NODE_ENV === "production";
+  const mailMode = env.MAIL_MODE || "off";
+  if (!["off", "smtp", "outbox"].includes(mailMode))
+    throw new Error("MAIL_MODE must be off, smtp or outbox.");
+  if (production && mailMode === "outbox")
+    throw new Error(
+      "Local mail outbox is disabled in production. Configure SMTP.",
+    );
+  const smtpPort = Number(env.SMTP_PORT || 587);
+  if (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535)
+    throw new Error("Invalid SMTP_PORT.");
+  if (mailMode === "smtp" && (!env.SMTP_HOST || !env.MAIL_FROM))
+    throw new Error("SMTP mode requires SMTP_HOST and MAIL_FROM.");
+  if ((env.MAIL_FROM || "").match(/[\r\n]/))
+    throw new Error("Invalid MAIL_FROM.");
   if (production && origin.protocol !== "https:")
     throw new Error("Production requires an HTTPS APP_ORIGIN.");
   const port = Number(env.PORT || 3000);
@@ -44,6 +58,20 @@ export function loadConfig(env = process.env) {
       "SSLCOMMERZ_PUBLIC_ORIGIN must be a public HTTPS origin without a path.",
     );
   return {
+    mail: {
+      mode: mailMode,
+      host: env.SMTP_HOST || "",
+      port: smtpPort,
+      secure:
+        env.SMTP_SECURE === "true" || (!env.SMTP_SECURE && smtpPort === 465),
+      user: env.SMTP_USER || "",
+      password: env.SMTP_PASSWORD || "",
+      from: env.MAIL_FROM || "",
+      outboxDir: path.resolve(
+        env.MAIL_OUTBOX_DIR ||
+          fileURLToPath(new URL("../data/mail-outbox/", import.meta.url)),
+      ),
+    },
     gateway: {
       mode: gatewayMode,
       storeId: env.SSLCOMMERZ_STORE_ID || "",

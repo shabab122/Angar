@@ -41,6 +41,15 @@ export function BillSummary({ bill }) {
         <span>{t("Service charge", "সার্ভিস চার্জ")}</span>
         <strong>{money(bill.charge)}</strong>
       </div>
+      {bill.tax > 0 && (
+        <div>
+          <span>
+            {bill.taxLabel} ({bill.taxRateBps / 100}%)
+            {bill.taxIncluded ? t(" · included", " · অন্তর্ভুক্ত") : ""}
+          </span>
+          <strong>{money(bill.tax)}</strong>
+        </div>
+      )}
       <div className="commerce-grand">
         <span>{t("Final total", "চূড়ান্ত মোট")}</span>
         <strong>{money(bill.total)}</strong>
@@ -65,6 +74,18 @@ export function BillSummary({ bill }) {
             "একই টাকা আবার দেওয়ার আগে পেমেন্টের অবস্থা দেখুন।",
           )}
         </p>
+      )}
+      {bill.refundedMinor > 0 && (
+        <>
+          <div>
+            <span>{t("Refunded", "ফেরত দেওয়া হয়েছে")}</span>
+            <strong>{money(bill.refundedMinor / 100)}</strong>
+          </div>
+          <div>
+            <span>{t("Retained after refunds", "ফেরতের পরে রাখা হয়েছে")}</span>
+            <strong>{money(bill.netCollectedMinor / 100)}</strong>
+          </div>
+        </>
       )}
     </div>
   );
@@ -125,6 +146,30 @@ export function PaymentLedger({ bill }) {
               </li>
             ))}
           </ul>
+        </>
+      )}
+      {bill.refunds?.length > 0 && (
+        <>
+          <h3>{t("Refunds & credit notes", "ফেরত ও ক্রেডিট নোট")}</h3>
+          <ul>
+            {bill.refunds.map((refund) => (
+              <li key={refund.id}>
+                <div>
+                  <strong>{refund.creditNote?.number || refund.id}</strong>
+                  <small>
+                    {refund.method} · {dhakaTime(refund.at, false, language)}
+                  </small>
+                </div>
+                <strong>−{money(refund.amountMinor / 100)}</strong>
+              </li>
+            ))}
+          </ul>
+          <p className="commerce-note">
+            {t(
+              "The original payment history remains unchanged. These confirmed refunds reduce the retained amount.",
+              "মূল পেমেন্টের ইতিহাস অপরিবর্তিত আছে। নিশ্চিত ফেরত অনুযায়ী রাখা টাকা কমেছে।",
+            )}
+          </p>
         </>
       )}
     </div>
@@ -795,7 +840,7 @@ export function GuestTableBill() {
                   <input
                     type="number"
                     min="0"
-                    max={customer.points}
+                    max={Math.max(0, customer.points)}
                     value={points}
                     disabled={!preview.canChangePromotion}
                     onChange={(event) => setPoints(event.target.value)}

@@ -37,6 +37,7 @@ export function publicSettings(settings) {
     orderingEnabled,
     serviceChargeBps,
     sample,
+    tax: { enabled: false, label: "VAT", rateBps: 0, mode: "exclusive", base: "food", ...settings.tax },
   };
 }
 

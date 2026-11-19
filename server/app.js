@@ -48,6 +48,7 @@ import {
 import { moveOrder } from "./order-changes.js";
 import { customerMiddleware, orderOwner } from "./customer.js";
 import { registerGatewayCallbacks } from "./gateway.js";
+import { staffIdentity } from "./staff-accounts.js";
 import { openWalkInTable } from "./reservations.js";
 
 const publicDir = fileURLToPath(new URL("../dist/", import.meta.url));
@@ -342,13 +343,19 @@ export function createApp(store, config, frontendMiddleware) {
           { projection: { passwordHash: 0 } },
         )
       : null;
-    if (!user)
+    if (!user || (user.authVersion || 0) !== (session.authVersion || 0))
       throw new HttpError(
         401,
         "STAFF_REQUIRED",
         "Sign in to the staff workspace.",
       );
     req.staff = user;
+    if (user.mustChangePassword && !["/me", "/password"].includes(req.path))
+      throw new HttpError(
+        403,
+        "PASSWORD_CHANGE_REQUIRED",
+        "Change your temporary staff password before using the workspace.",
+      );
     next();
   }
 
@@ -380,6 +387,7 @@ export function createApp(store, config, frontendMiddleware) {
     await sessions.insertOne({
       _id: hash(token),
       staffId: user._id,
+      authVersion: user.authVersion || 0,
       expiresAt: new Date(Date.now() + SESSION_LIFETIME),
     });
     res.cookie(
@@ -387,7 +395,11 @@ export function createApp(store, config, frontendMiddleware) {
       token,
       cookieOptions(config, { maxAge: SESSION_LIFETIME }),
     );
-    res.json({ username: user.username, role: user.role });
+    await staff.updateOne(
+      { _id: user._id },
+      { $set: { lastLoginAt: new Date() } },
+    );
+    res.json(staffIdentity(user));
   });
   staffApi.post("/logout", async (req, res) => {
     const token = req.cookies[STAFF_COOKIE];
@@ -396,9 +408,7 @@ export function createApp(store, config, frontendMiddleware) {
     res.status(204).end();
   });
   staffApi.use(requireStaff);
-  staffApi.get("/me", (req, res) =>
-    res.json({ username: req.staff.username, role: req.staff.role }),
-  );
+  staffApi.get("/me", (req, res) => res.json(staffIdentity(req.staff)));
   staffApi.get("/orders", async (req, res) => {
     const role = req.staff.role;
     const [active, recent] = await Promise.all([
@@ -607,6 +617,7 @@ export function createApp(store, config, frontendMiddleware) {
         "/events",
         "/staff",
         "/account",
+        "/account/action",
         "/reservations",
         "/payment",
         "/receipt/:id",
