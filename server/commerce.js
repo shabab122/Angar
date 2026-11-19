@@ -4,6 +4,7 @@ import { billView } from "./bill-view.js";
 import { HttpError } from "./http.js";
 import { promotionTotals } from "./rewards.js";
 import { restaurantSettings } from "./restaurant.js";
+import { financialTotals } from "./invoices.js";
 
 export async function requireBillOwner(store, bill, req, res, config) {
   if (
@@ -61,11 +62,7 @@ export function registerGuestBills(api, store, config, requireId) {
       preview: {
         subtotalMinor,
         discountMinor: totals.discountMinor,
-        totalMinor:
-          totals.netSubtotalMinor +
-          Math.round(
-            (totals.netSubtotalMinor * settings.serviceChargeBps) / 10000,
-          ),
+        ...financialTotals(totals.netSubtotalMinor, settings),
         promotionError,
         couponCode: table.promotion?.couponCode || "",
         loyaltyPoints: table.promotion?.loyaltyPoints || 0,

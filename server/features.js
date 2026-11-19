@@ -29,6 +29,10 @@ import { registerCustomers, orderOwner } from "./customer.js";
 import { registerGuestRewards, registerStaffRewards } from "./rewards.js";
 import { registerGuestBills } from "./commerce.js";
 import { registerSplitBills } from "./payments.js";
+import { registerRefunds } from "./refunds.js";
+import { registerStaffAccounts } from "./staff-accounts.js";
+import { registerInventory } from "./inventory.js";
+import { registerInvoices } from "./invoices.js";
 import { registerGuestGateway, registerStaffGateway } from "./gateway.js";
 import {
   registerGuestReservations,
@@ -229,8 +233,18 @@ export function registerStaffFeatures(
 ) {
   const billingRoles = allowRoles("admin", "cashier");
   const floorRoles = allowRoles("admin", "waiter");
+  registerStaffAccounts(api, store, config, requireAdmin, requireId);
+  registerInventory(
+    api,
+    store,
+    requireAdmin,
+    requireId,
+    allowRoles("admin", "kitchen"),
+  );
+  registerInvoices(api, store, requireAdmin);
   registerStaffRewards(api, store, requireAdmin, billingRoles);
   registerSplitBills(api, store, billingRoles, requireId);
+  registerRefunds(api, store, config, billingRoles, requireAdmin, requireId);
   registerStaffGateway(api, store, config, billingRoles, requireAdmin);
   registerStaffReservations(api, store, floorRoles, requireAdmin, requireId);
 

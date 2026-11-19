@@ -1,0 +1,154 @@
+/* v2.3 additions retain the existing Angar colours and typography. */
+.management-dialog {
+  max-width: 820px;
+  width: calc(100% - 32px);
+}
+.management-dialog .commerce-form {
+  padding-block: 6px 12px;
+}
+.management-status,
+.management-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 18px;
+  background: #f0e6d6;
+  color: var(--wine);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: normal;
+}
+.management-warning {
+  background: #fff1dc;
+  color: #946125;
+}
+.management-section-title {
+  margin-top: 30px;
+  color: var(--wine);
+}
+.management-muted {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+}
+.management-tabs {
+  margin-block: 22px;
+  flex-wrap: wrap;
+}
+.staff-access-card {
+  max-width: 650px;
+}
+.staff-required-password {
+  max-width: 700px;
+  margin: 35px auto;
+  padding: 20px;
+}
+.stock-amount {
+  display: block;
+  color: var(--wine);
+  font: 550 35px var(--serif);
+  margin-top: 18px;
+}
+.stock-amount small {
+  font: 650 13px var(--sans);
+  color: var(--muted);
+}
+.recipe-group {
+  border: 1px solid var(--line);
+  padding: 18px;
+  background: #fcf7ee;
+  border-radius: 10px;
+}
+.recipe-group h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+.recipe-ingredient-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px 34px;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+.credit-note {
+  padding: 10px 5px;
+}
+.credit-note h2 {
+  font: 550 30px var(--serif);
+  color: var(--wine);
+  margin-bottom: 15px;
+}
+.credit-note > p {
+  margin-block: 12px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.invoice-business {
+  margin-block: 16px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.invoice-business > strong {
+  font-size: 15px;
+}
+.invoice-business > p {
+  margin-block: 3px;
+}
+.invoice-settings-form > .commerce-settings-grid > .commerce-card {
+  margin-block: 12px;
+}
+.refunds-panel .commerce-card > p,
+.refunds-panel .commerce-card h3 {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .management-dialog {
+    width: calc(100% - 16px);
+  }
+  .management-dialog .dialog-body {
+    padding-inline: 15px;
+  }
+  .recipe-group {
+    padding: 13px;
+  }
+  .recipe-ingredient-row {
+    grid-template-columns: minmax(0, 1fr) 82px 28px;
+    gap: 6px;
+  }
+  .recipe-ingredient-row label {
+    font-size: 10px;
+  }
+  .management-dialog input,
+  .management-dialog select {
+    max-width: 100%;
+  }
+}
+@media print {
+  .staff-app:has(.refunds-panel .management-dialog[open]) .staff-sidebar,
+  .staff-app:has(.refunds-panel .management-dialog[open]) .staff-topbar,
+  .staff-main:has(.refunds-panel .management-dialog[open])
+    > *:not(.refunds-panel),
+  .refunds-panel:has(.management-dialog[open]) > *:not(.management-dialog) {
+    display: none !important;
+  }
+  .credit-note .button {
+    display: none;
+  }
+  dialog:has(.credit-note) {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    box-shadow: none;
+    width: 100%;
+  }
+  dialog:has(.credit-note) .dialog-body {
+    overflow: visible;
+    max-height: none;
+  }
+}

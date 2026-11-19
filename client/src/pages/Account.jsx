@@ -53,6 +53,7 @@ export function Account() {
     interval: 30000,
   });
   const offers = useResource("/coupons", { enabled: Boolean(customer) });
+  const delivery = useResource("/account");
   useEffect(() => {
     if (customer) setProfile({ name: customer.name, phone: customer.phone });
   }, [customer?.id, customer?.name, customer?.phone]);
@@ -61,6 +62,19 @@ export function Account() {
     setBusy(true);
     setError("");
     try {
+      if (mode === "forgot") {
+        await api("/account/forgot-password", {
+          method: "POST",
+          data: { email: values.email },
+        });
+        notify(
+          t(
+            "If this account exists and email is available, a reset link will arrive shortly.",
+            "অ্যাকাউন্টটি থাকলে এবং ইমেইল চালু থাকলে রিসেট লিংক পাঠানো হবে।",
+          ),
+        );
+        return;
+      }
       await api("/account/" + mode, {
         method: "POST",
         data:
@@ -153,6 +167,22 @@ export function Account() {
                 {t("Create account", "অ্যাকাউন্ট খুলুন")}
               </button>
             </div>
+            {mode === "forgot" && (
+              <p>
+                {t(
+                  "Enter your account email to request a password reset link.",
+                  "পাসওয়ার্ড রিসেট লিংক পেতে অ্যাকাউন্টের ইমেইল দিন।",
+                )}
+              </p>
+            )}
+            {delivery.data?.mail?.enabled === false && (
+              <p className="commerce-note">
+                {t(
+                  "Email delivery is not configured yet. Ask the restaurant to enable it for verification and password recovery.",
+                  "ইমেইল পাঠানো এখনও চালু হয়নি। যাচাই ও পাসওয়ার্ড রিসেটের জন্য রেস্টুরেন্টকে এটি চালু করতে বলুন।",
+                )}
+              </p>
+            )}
             {mode === "register" && (
               <label>
                 {t("Your name", "আপনার নাম")}
@@ -197,35 +227,55 @@ export function Account() {
                 />
               </label>
             )}
-            <label>
-              {t("Password", "পাসওয়ার্ড")}
-              <input
-                type="password"
-                autoComplete={
-                  mode === "login" ? "current-password" : "new-password"
-                }
-                required
-                minLength={mode === "register" ? 12 : 1}
-                maxLength={128}
-                value={values.password}
-                onChange={(event) =>
-                  setValues({ ...values, password: event.target.value })
-                }
-              />
-              {mode === "register" && (
-                <small>
-                  {t("Use at least 12 characters.", "অন্তত ১২ অক্ষর ব্যবহার করুন।")}
-                </small>
-              )}
-            </label>
+            {mode !== "forgot" && (
+              <label>
+                {t("Password", "পাসওয়ার্ড")}
+                <input
+                  type="password"
+                  autoComplete={
+                    mode === "login" ? "current-password" : "new-password"
+                  }
+                  required
+                  minLength={mode === "register" ? 12 : 1}
+                  maxLength={128}
+                  value={values.password}
+                  onChange={(event) =>
+                    setValues({ ...values, password: event.target.value })
+                  }
+                />
+                {mode === "register" && (
+                  <small>
+                    {t(
+                      "Use at least 12 characters.",
+                      "অন্তত ১২ অক্ষর ব্যবহার করুন।",
+                    )}
+                  </small>
+                )}
+              </label>
+            )}
             {error && <ErrorMessage>{error}</ErrorMessage>}
             <Button type="submit" disabled={busy}>
               {busy
                 ? t("Please wait…", "অপেক্ষা করুন…")
                 : mode === "login"
                   ? t("Sign in to my account", "আমার অ্যাকাউন্টে প্রবেশ")
-                  : t("Create my account", "আমার অ্যাকাউন্ট খুলুন")}
+                  : mode === "forgot"
+                    ? t("Send reset link", "রিসেট লিংক পাঠান")
+                    : t("Create my account", "আমার অ্যাকাউন্ট খুলুন")}
             </Button>
+            {mode !== "forgot" && (
+              <Button
+                secondary
+                type="button"
+                onClick={() => {
+                  setMode("forgot");
+                  setError("");
+                  setValues({ ...values, password: "" });
+                }}
+              >
+                {t("Forgot password?", "পাসওয়ার্ড ভুলে গেছেন?")}
+              </Button>
+            )}
           </form>
         </div>
       ) : (
@@ -256,6 +306,63 @@ export function Account() {
             </Button>
           </div>
           {error && <ErrorMessage>{error}</ErrorMessage>}
+          <article className="commerce-card account-verification">
+            <h2>
+              <ShieldCheck size={21} />
+              {customer.emailVerified
+                ? t("Email verified", "ইমেইল যাচাই হয়েছে")
+                : t("Verify your email", "ইমেইল যাচাই করুন")}
+            </h2>
+            <p className="commerce-note">
+              {customer.emailVerified
+                ? t(
+                    "Your email address has been confirmed.",
+                    "আপনার ইমেইল ঠিকানা নিশ্চিত করা হয়েছে।",
+                  )
+                : t(
+                    "Confirm your email to protect access and enable password recovery. Guest ordering remains available.",
+                    "অ্যাক্সেস সুরক্ষিত রাখতে ও পাসওয়ার্ড রিসেট করতে ইমেইল নিশ্চিত করুন। অতিথি অর্ডার চালু আছে।",
+                  )}
+            </p>
+            {!customer.emailVerified && (
+              <Button
+                secondary
+                disabled={busy || delivery.data?.mail?.enabled === false}
+                onClick={() =>
+                  change(
+                    () =>
+                      api("/account/verification", {
+                        method: "POST",
+                        data: {},
+                      }),
+                    t(
+                      "Check your email for a verification link; requests are limited to one per minute.",
+                      "যাচাইয়ের লিংকের জন্য ইমেইল দেখুন; প্রতি মিনিটে একবার অনুরোধ করা যায়।",
+                    ),
+                  )
+                }
+              >
+                {t("Send verification email", "যাচাইয়ের ইমেইল পাঠান")}
+              </Button>
+            )}
+            {delivery.data?.mail?.mode === "outbox" && (
+              <p className="commerce-note">
+                {t(
+                  "Local test mode: emails are saved in the server’s private outbox.",
+                  "স্থানীয় টেস্ট মোড: ইমেইল সার্ভারের ব্যক্তিগত আউটবক্সে রাখা হচ্ছে।",
+                )}
+              </p>
+            )}
+            {delivery.data?.mail?.enabled === false &&
+              !customer.emailVerified && (
+                <p className="commerce-note">
+                  {t(
+                    "Ask the restaurant to configure email delivery.",
+                    "ইমেইল পাঠানোর ব্যবস্থা চালু করতে রেস্টুরেন্টকে বলুন।",
+                  )}
+                </p>
+              )}
+          </article>
           <div className="account-member-grid">
             <article className="commerce-wine-card">
               <Wallet size={28} />
@@ -263,10 +370,18 @@ export function Account() {
               <strong className="points-total">
                 {loyalty.data?.points ?? customer.points}
               </strong>
+              {(loyalty.data?.points ?? customer.points) < 0 && (
+                <p>
+                  {t(
+                    "Points from a refunded purchase were already spent. Future earnings will clear this balance before points can be redeemed again.",
+                    "ফেরত দেওয়া অর্ডারের পয়েন্ট আগে ব্যবহার হয়েছে। ভবিষ্যতের পয়েন্টে এই বাকি সমন্বয় হওয়ার পরে আবার ব্যবহার করতে পারবেন।",
+                  )}
+                </p>
+              )}
               <p>
                 {t(
-                  "Earn 1 point for every BDT 100 of your food after discounts, once the whole table bill is paid. Each point is worth BDT 1.",
-                  "ছাড়ের পর আপনার খাবারের প্রতি ১০০ টাকায় ১ পয়েন্ট পাবেন, পুরো টেবিলের বিল পরিশোধ হলে। ১ পয়েন্টের মূল্য ১ টাকা।",
+                  "Earn 1 point for every BDT 100 of your food after discounts and excluding tax, once the whole table bill is paid. Each point is worth BDT 1.",
+                  "ছাড়ের পরে ও কর বাদে আপনার খাবারের প্রতি ১০০ টাকায় ১ পয়েন্ট পাবেন, পুরো টেবিলের বিল পরিশোধ হলে। ১ পয়েন্টের মূল্য ১ টাকা।",
                 )}
               </p>
               <Link to="/orders">

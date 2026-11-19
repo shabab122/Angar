@@ -281,8 +281,9 @@ export function CartDrawer() {
     if (cartOpen) {
       setError("");
       void app.reloadContext().catch(() => {});
+      void app.reloadRestaurant().catch(() => {});
     }
-  }, [cartOpen, app.reloadContext]);
+  }, [cartOpen, app.reloadContext, app.reloadRestaurant]);
   const available =
     pricedLines.length > 0 && pricedLines.every((line) => line.valid);
   const canOrder =
@@ -483,6 +484,7 @@ export function CartDrawer() {
                 "রেস্টুরেন্টে বিল পরিশোধ করুন। প্রযোজ্য সার্ভিস চার্জ টেবিলের চূড়ান্ত বিলে দেখা যাবে।",
               )}
             </p>
+            {restaurant?.tax?.enabled && <p>{restaurant.tax.label} {restaurant.tax.rateBps / 100}%{restaurant.tax.mode === "inclusive" ? t(" is included in listed prices.", " তালিকার দামে অন্তর্ভুক্ত।") : t(" is added to the final bill after discounts.", " ছাড়ের পরে চূড়ান্ত বিলে যোগ হবে।")}</p>}
             {restaurant?.orderingEnabled === false && (
               <ErrorMessage>
                 {t(

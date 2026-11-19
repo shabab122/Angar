@@ -3,6 +3,11 @@ import { z } from "zod";
 import { rateLimit } from "express-rate-limit";
 import { body, HttpError } from "./http.js";
 import {
+  issueAccountMail,
+  mailStatus,
+  registerAccountMail,
+} from "./account-mail.js";
+import {
   cookieOptions,
   getGuest,
   hash,
@@ -28,6 +33,7 @@ export const customerView = (customer) =>
         email: customer.email,
         phone: customer.phone || "",
         points: customer.points || 0,
+        emailVerified: Boolean(customer.emailVerifiedAt),
       }
     : null;
 export function requireCustomer(req, res, next) {
@@ -101,6 +107,7 @@ async function signIn(store, req, res, config, customer) {
 }
 
 export function registerCustomers(api, store, config, requireId) {
+  registerAccountMail(api, store, config, requireCustomer);
   const authLimit = rateLimit({
     windowMs: 15 * 60000,
     limit: 15,
@@ -116,6 +123,7 @@ export function registerCustomers(api, store, config, requireId) {
   api.get("/account", (req, res) =>
     res.json({
       customer: customerView(req.customer),
+      mail: mailStatus(config),
       loyalty: { earnPerBdt: 100, valuePerPoint: 1, maxRedemptionPercent: 20 },
     }),
   );
@@ -151,7 +159,13 @@ export function registerCustomers(api, store, config, requireId) {
       throw error;
     }
     await signIn(store, req, res, config, customer);
-    res.status(201).json({ customer: customerView(customer) });
+    const verification = await issueAccountMail(
+      store,
+      config,
+      customer,
+      "verify",
+    );
+    res.status(201).json({ customer: customerView(customer), verification });
   });
   api.post("/account/login", authLimit, async (req, res) => {
     const input = body(
@@ -223,6 +237,7 @@ export function registerCustomers(api, store, config, requireId) {
         { returnDocument: "after" },
       );
       await store.customerSessions.deleteMany({ customerId: customer._id });
+      await store.accountTokens.deleteMany({ customerId: customer._id });
       await signIn(store, req, res, config, updated);
       res.status(204).end();
     },

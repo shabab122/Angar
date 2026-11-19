@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.3.0
+
+- Add SMTP-backed email verification and password recovery with hashed, expiring single-use tokens; add a private local-test outbox and explicit delivery status.
+- Add approved full/partial settled-bill refunds, original-payment limits, SSLCOMMERZ refund initiation/reconciliation, immutable credit notes and refund-aware loyalty/coupon adjustments.
+- Add individual staff management, administrator reauthentication, temporary-password enforcement, personal password changes, access revocation and last-admin protection.
+- Add ingredient stock receipts/waste/corrections, low-stock alerts, per-dish/size/add-on recipes and transactional kitchen acceptance/edit/cancellation stock movements.
+- Add inclusive/exclusive tax configuration, invoice identity and numbering, immutable invoice snapshots and balanced tax/refund reporting.
+- Retain v2.2 design/assets, guest QR ordering, existing staff workflows, payments, customer accounts, reservations, reviews/events and database compatibility.
+- Add integration tests, browser acceptance coverage and Bengali setup/upgrade instructions.
+
 ## 2.2.0
 
 - Add integer-paisa bill allocations by equal share, ordering customer/device, custom amount and whole-item quantity.
