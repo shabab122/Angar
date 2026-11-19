@@ -32,6 +32,7 @@ export function cookieOptions(config, extra = {}) {
 }
 
 export function getGuest(req, res, config) {
+  if (req.guestHash) return req.guestHash;
   let token = req.signedCookies[GUEST_COOKIE];
   if (!sessionToken(token)) {
     token = randomToken();
@@ -41,7 +42,8 @@ export function getGuest(req, res, config) {
       cookieOptions(config, { signed: true, maxAge: 30 * 24 * hour }),
     );
   }
-  return hash(token);
+  req.guestHash = hash(token);
+  return req.guestHash;
 }
 
 export function getTableCookie(req) {

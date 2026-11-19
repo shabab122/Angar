@@ -138,6 +138,20 @@ async function assertSlot(store, event, session) {
     },
     { session, projection: { _id: 1 } },
   );
+  const tableBooking = await store.reservations.findOne(
+    {
+      status: { $in: ["confirmed", "seated"] },
+      startsAt: { $lt: event.blockedUntil },
+      endsAt: { $gt: event.startsAt },
+    },
+    { session, projection: { _id: 1 } },
+  );
+  if (tableBooking)
+    throw new HttpError(
+      409,
+      "SLOT_BUSY",
+      "This private gathering overlaps a confirmed table reservation.",
+    );
   if (conflict)
     throw new HttpError(
       409,

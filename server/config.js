@@ -29,7 +29,27 @@ export function loadConfig(env = process.env) {
   if (!Number.isInteger(proxyHops) || proxyHops < 0 || proxyHops > 5)
     throw new Error("Invalid TRUST_PROXY.");
 
+  const gatewayMode = env.SSLCOMMERZ_MODE || "sandbox";
+  if (!["sandbox", "live"].includes(gatewayMode))
+    throw new Error("SSLCOMMERZ_MODE must be sandbox or live.");
+  const publicOrigin =
+    env.SSLCOMMERZ_PUBLIC_ORIGIN ||
+    (origin.protocol === "https:" ? origin.origin : "");
+  if (
+    publicOrigin &&
+    (new URL(publicOrigin).origin !== publicOrigin ||
+      new URL(publicOrigin).protocol !== "https:")
+  )
+    throw new Error(
+      "SSLCOMMERZ_PUBLIC_ORIGIN must be a public HTTPS origin without a path.",
+    );
   return {
+    gateway: {
+      mode: gatewayMode,
+      storeId: env.SSLCOMMERZ_STORE_ID || "",
+      storePassword: env.SSLCOMMERZ_STORE_PASSWORD || "",
+      publicOrigin,
+    },
     mongoUri: env.MONGODB_URI,
     mongoDatabase: env.MONGODB_DB || "angar",
     cookieSecret: env.COOKIE_SECRET,

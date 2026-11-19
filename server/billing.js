@@ -3,39 +3,11 @@ import { ObjectId } from "mongodb";
 import { HttpError } from "./http.js";
 import { ACTIVE } from "./orders.js";
 import { restaurantSettings } from "./restaurant.js";
-
-export function billView(bill) {
-  const {
-    _id,
-    receiptNo,
-    tableNumber,
-    status,
-    items,
-    subtotalMinor,
-    chargeMinor,
-    totalMinor,
-    serviceChargeBps,
-    createdAt,
-    paidAt,
-    payment,
-  } = bill;
-  return {
-    id: _id.toString(),
-    receiptNo,
-    tableNumber,
-    status,
-    items,
-    subtotal: subtotalMinor / 100,
-    charge: chargeMinor / 100,
-    total: totalMinor / 100,
-    serviceChargeBps,
-    createdAt,
-    paidAt,
-    payment: payment
-      ? { method: payment.method, reference: payment.reference }
-      : null,
-  };
-}
+import { promotionTotals } from "./rewards.js";
+import { finishBill } from "./payments.js";
+import { billView } from "./bill-view.js";
+export { billView } from "./bill-view.js";
+export { settleBill } from "./payments.js";
 
 export async function finalizeBill(store, tableNumber, user) {
   return store.client.withSession((session) =>
@@ -82,18 +54,34 @@ export async function finalizeBill(store, tableNumber, user) {
           (total, order) => total + Math.round(order.total * 100),
           0,
         );
+        const billId = new ObjectId();
+        const promotion = await promotionTotals(
+          store,
+          table,
+          subtotalMinor,
+          session,
+          billId,
+        );
         const chargeMinor = Math.round(
-          (subtotalMinor * settings.serviceChargeBps) / 10000,
+          (promotion.netSubtotalMinor * settings.serviceChargeBps) / 10000,
         );
         const bill = {
-          _id: new ObjectId(),
+          _id: billId,
           receiptNo: "AK-" + randomBytes(6).toString("hex").toUpperCase(),
           tableId: table._id,
           tableNumber,
           visitId: table.activeVisitId,
           orderIds: served.map((order) => order._id),
           items: served.flatMap((order) =>
-            order.items.map((item) => ({
+            order.items.map((item, index) => ({
+              lineId: order._id.toString() + ":" + index,
+              dishId: item.dishId,
+              ownerKey: order.customerId
+                ? "member:" + order.customerId
+                : "guest:" + order.guestHash,
+              ...(order.customerId
+                ? { ownerCustomerId: order.customerId }
+                : {}),
               name: item.name,
               nameBn: item.nameBn,
               variant: item.variant || null,
@@ -107,7 +95,13 @@ export async function finalizeBill(store, tableNumber, user) {
           serviceChargeBps: settings.serviceChargeBps,
           subtotalMinor,
           chargeMinor,
-          totalMinor: subtotalMinor + chargeMinor,
+          ...promotion,
+          totalMinor: promotion.netSubtotalMinor + chargeMinor,
+          paidMinor: 0,
+          payments: [],
+          holds: [],
+          splits: [],
+          revision: 0,
           createdAt: new Date(),
           createdBy: user.username,
         };
@@ -126,94 +120,9 @@ export async function finalizeBill(store, tableNumber, user) {
           },
           { session },
         );
-        return billView(bill);
-      },
-      { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } },
-    ),
-  );
-}
-
-export async function settleBill(store, id, payment, user) {
-  return store.client.withSession((session) =>
-    session.withTransaction(
-      async () => {
-        const bill = await store.bills.findOneAndUpdate(
-          { _id: id },
-          { $inc: { revision: 1 } },
-          { session },
+        return billView(
+          bill.totalMinor === 0 ? await finishBill(store, bill, session) : bill,
         );
-        if (!bill)
-          throw new HttpError(
-            404,
-            "NOT_FOUND",
-            "This bill could not be found.",
-          );
-        if (bill.status === "paid") return billView(bill);
-        const now = new Date();
-        const record = {
-          method: payment.method,
-          reference: payment.reference,
-          by: user.username,
-          at: now,
-        };
-        await store.bills.updateOne(
-          { _id: id, status: "finalized" },
-          {
-            $set: { status: "paid", paidAt: now, payment: record },
-          },
-          { session },
-        );
-        const closed = await store.tables.updateOne(
-          {
-            _id: bill.tableId,
-            activeVisitId: bill.visitId,
-            billId: id,
-          },
-          {
-            $set: {
-              activeVisitId: null,
-              openedAt: null,
-              billingState: "open",
-              lastBillId: id,
-            },
-            $unset: { billId: "" },
-            $inc: { revision: 1 },
-          },
-          { session },
-        );
-        if (!closed.matchedCount)
-          throw new HttpError(
-            409,
-            "TABLE_CHANGED",
-            "The table visit changed. Refresh before recording payment.",
-          );
-        await store.audit.insertOne(
-          {
-            type: "bill.paid",
-            billId: id,
-            by: user.username,
-            method: payment.method,
-            at: now,
-          },
-          { session },
-        );
-        await store.serviceRequests.updateMany(
-          { tableId: bill.tableId, visitId: bill.visitId, status: "open" },
-          {
-            $set: {
-              status: "resolved",
-              resolvedAt: now,
-              resolvedBy: user.username,
-            },
-          },
-          { session },
-        );
-        return billView({
-          ...bill,
-          status: "paid",
-          paidAt: now,
-          payment: record,
-        });
       },
       { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } },
     ),

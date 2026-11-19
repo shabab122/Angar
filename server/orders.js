@@ -106,6 +106,12 @@ export async function placeOrder(
   const requestFilter = { guestHash, requestKey };
 
   function replay(order) {
+    if (order.customerId && !order.customerId.equals(actor.customerId))
+      throw new HttpError(
+        404,
+        "NOT_FOUND",
+        "This checkout belongs to a different customer account.",
+      );
     if (
       order.fingerprint !== fingerprint ||
       (context &&
@@ -235,6 +241,7 @@ export async function placeOrder(
             _id: new ObjectId(),
             code: "AG-" + randomBytes(5).toString("hex").toUpperCase(),
             guestHash,
+            ...(actor.customerId ? { customerId: actor.customerId } : {}),
             requestKey,
             fingerprint,
             tableId: table._id,
@@ -273,7 +280,8 @@ export async function closeTable(store, number) {
         const table = await tables.findOneAndUpdate(
           { number, activeVisitId: { $type: "objectId" } },
           {
-            $set: { activeVisitId: null, openedAt: null },
+            $set: { activeVisitId: null, openedAt: null, promotion: null },
+            $unset: { reservationId: "", waitlistId: "" },
             $inc: { revision: 1 },
           },
           { session, returnDocument: "before" },
@@ -311,6 +319,12 @@ export async function closeTable(store, number) {
             409,
             "BILL_REQUIRED",
             "Finalize and settle this table at the counter to close the visit.",
+          );
+        if (table.reservationId)
+          await store.reservations.updateOne(
+            { _id: table.reservationId, status: "seated" },
+            { $set: { status: "completed", completedAt: new Date() } },
+            { session },
           );
         await store.serviceRequests.updateMany(
           { tableId: table._id, visitId: table.activeVisitId, status: "open" },

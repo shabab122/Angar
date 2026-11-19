@@ -46,6 +46,9 @@ import {
 } from "./security.js";
 
 import { moveOrder } from "./order-changes.js";
+import { customerMiddleware, orderOwner } from "./customer.js";
+import { registerGatewayCallbacks } from "./gateway.js";
+import { openWalkInTable } from "./reservations.js";
 
 const publicDir = fileURLToPath(new URL("../dist/", import.meta.url));
 const staffStatuses = {
@@ -104,6 +107,7 @@ export function createApp(store, config, frontendMiddleware) {
     }),
   );
   app.use(cookieParser(config.cookieSecret));
+  registerGatewayCallbacks(app, store, config);
 
   app.get("/healthz", async (req, res) => {
     await db.command({ ping: 1 });
@@ -151,6 +155,7 @@ export function createApp(store, config, frontendMiddleware) {
     next();
   });
   api.use(express.json({ limit: "18kb" }));
+  api.use(customerMiddleware(store));
 
   api.get("/menu", async (req, res) => {
     const [menu, aggregates] = await Promise.all([
@@ -223,7 +228,10 @@ export function createApp(store, config, frontendMiddleware) {
   api.get("/orders", async (req, res) => {
     const guestHash = getGuest(req, res, config);
     const recent = await orders
-      .find({ guestHash })
+      .find({
+        ...orderOwner(req, guestHash),
+        ...(req.query.id ? { _id: requireId(req.query.id) } : {}),
+      })
       .sort({ createdAt: -1 })
       .limit(25)
       .toArray();
@@ -270,6 +278,7 @@ export function createApp(store, config, frontendMiddleware) {
       getTableCookie(req),
       requestKey,
       input,
+      req.customer ? { customerId: req.customer._id } : {},
     );
     res.status(result.replay ? 200 : 201).json({ order: result.order });
   });
@@ -281,7 +290,7 @@ export function createApp(store, config, frontendMiddleware) {
       const input = body(reviewInput, req.body);
       const order = await orders.findOne({
         _id: id,
-        guestHash: getGuest(req, res, config),
+        ...orderOwner(req, getGuest(req, res, config)),
       });
       if (!order || !order.items.some((item) => item.dishId === input.dishId)) {
         throw new HttpError(
@@ -430,20 +439,7 @@ export function createApp(store, config, frontendMiddleware) {
     "/tables/:number/open",
     allowRoles("admin", "waiter"),
     async (req, res) => {
-      const table = await tables.findOneAndUpdate(
-        { number: req.params.number, activeVisitId: null },
-        {
-          $set: { activeVisitId: new ObjectId(), openedAt: new Date() },
-          $inc: { revision: 1 },
-        },
-        { returnDocument: "after" },
-      );
-      if (!table)
-        throw new HttpError(
-          409,
-          "TABLE_ALREADY_OPEN",
-          "This table is already open or does not exist.",
-        );
+      const table = await openWalkInTable(store, req.params.number);
       res.json({ table: tableView(table) });
     },
   );
@@ -603,7 +599,18 @@ export function createApp(store, config, frontendMiddleware) {
       }),
     );
     app.get(
-      ["/", "/menu", "/orders", "/about", "/events", "/staff", "/receipt/:id"],
+      [
+        "/",
+        "/menu",
+        "/orders",
+        "/about",
+        "/events",
+        "/staff",
+        "/account",
+        "/reservations",
+        "/payment",
+        "/receipt/:id",
+      ],
       (req, res) => res.sendFile(path.join(publicDir, "index.html")),
     );
   }

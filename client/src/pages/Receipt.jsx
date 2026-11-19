@@ -4,6 +4,7 @@ import { useApp } from "../lib/AppContext";
 import { useResource } from "../lib/useResource";
 import { dhakaTime } from "../lib/api";
 import { Button, ErrorMessage, Loading, Logo } from "../components/UI";
+import { PaymentLedger } from "../components/Financial";
 
 export function Receipt({ staff = false, bill: provided }) {
   const { id } = useParams();
@@ -66,6 +67,12 @@ export function Receipt({ staff = false, bill: provided }) {
             <dt>{t("Food subtotal", "খাবারের মোট")}</dt>
             <dd>{money(bill.subtotal)}</dd>
           </div>
+          {bill.discount > 0 && (
+            <div>
+              <dt>{t("Coupon / loyalty discount", "কুপন / পয়েন্টের ছাড়")}</dt>
+              <dd>−{money(bill.discount)}</dd>
+            </div>
+          )}
           <div>
             <dt>
               {t("Service charge", "সার্ভিস চার্জ")} (
@@ -81,8 +88,8 @@ export function Receipt({ staff = false, bill: provided }) {
         <p className={"receipt-status " + bill.status}>
           <CheckCircle2 size={17} />
           {bill.status === "paid"
-            ? t("Paid at the restaurant", "রেস্টুরেন্টে পরিশোধিত")
-            : t("Payment pending at the counter", "কাউন্টারে পরিশোধের অপেক্ষায়")}
+            ? t("Paid", "পরিশোধিত")
+            : t("Balance remains", "বাকি টাকা রয়েছে")}
           {bill.payment && <span> · {bill.payment.method}</span>}
         </p>
         {bill.payment?.reference && (
@@ -90,6 +97,13 @@ export function Receipt({ staff = false, bill: provided }) {
             {t("Payment reference", "পেমেন্ট রেফারেন্স")} {bill.payment.reference}
           </p>
         )}
+        {bill.balanceMinor > 0 && (
+          <p className="receipt-reference">
+            {t("Paid / remaining: ", "পরিশোধিত / বাকি: ")}
+            {money(bill.paidMinor / 100)} / {money(bill.balanceMinor / 100)}
+          </p>
+        )}
+        <PaymentLedger bill={bill} />
         <p className="receipt-thanks">
           {t(
             "Thank you for sharing your table with us.",

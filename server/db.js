@@ -20,6 +20,14 @@ export async function connectDatabase(config) {
       events: db.collection("events"),
       eventLocks: db.collection("eventLocks"),
       serviceRequests: db.collection("serviceRequests"),
+      customers: db.collection("customers"),
+      customerSessions: db.collection("customerSessions"),
+      coupons: db.collection("coupons"),
+      couponRedemptions: db.collection("couponRedemptions"),
+      loyaltyLedger: db.collection("loyaltyLedger"),
+      gatewayTransactions: db.collection("gatewayTransactions"),
+      reservations: db.collection("reservations"),
+      waitlist: db.collection("waitlist"),
     };
     const { dishes, tables, orders, reviews, staff, sessions } = collections;
     await Promise.all([
@@ -61,6 +69,52 @@ export async function connectDatabase(config) {
           name: "one_open_request_per_type",
         },
       ),
+    ]);
+    await Promise.all([
+      collections.customers.createIndex({ email: 1 }, { unique: true }),
+      collections.customerSessions.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 },
+      ),
+      collections.customerSessions.createIndex({ customerId: 1 }),
+      orders.createIndex({ customerId: 1, createdAt: -1, _id: -1 }),
+      collections.couponRedemptions.createIndex({
+        couponCode: 1,
+        customerId: 1,
+      }),
+      collections.loyaltyLedger.createIndex({ key: 1 }, { unique: true }),
+      collections.loyaltyLedger.createIndex({ customerId: 1, at: -1 }),
+      collections.gatewayTransactions.createIndex(
+        { clientKey: 1 },
+        { unique: true },
+      ),
+      collections.gatewayTransactions.createIndex(
+        { mode: 1, merchantKey: 1, bankTransactionId: 1 },
+        {
+          unique: true,
+          name: "merchant_bank_payment_unique",
+          partialFilterExpression: { bankTransactionId: { $type: "string" } },
+        },
+      ),
+      collections.gatewayTransactions.createIndex({ billId: 1, createdAt: -1 }),
+      collections.gatewayTransactions.createIndex({ status: 1, createdAt: -1 }),
+      collections.reservations.createIndex({ code: 1 }, { unique: true }),
+      collections.reservations.createIndex({ startsAt: 1, status: 1 }),
+      collections.reservations.createIndex({
+        tableId: 1,
+        startsAt: 1,
+        endsAt: 1,
+        status: 1,
+      }),
+      collections.reservations.createIndex(
+        { actorKey: 1, requestKey: 1 },
+        { unique: true },
+      ),
+      collections.waitlist.createIndex(
+        { actorKey: 1 },
+        { unique: true, partialFilterExpression: { active: true } },
+      ),
+      collections.waitlist.createIndex({ active: 1, createdAt: 1 }),
     ]);
     return { client, db, ...collections };
   } catch (error) {

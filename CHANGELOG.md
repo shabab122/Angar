@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.2.0
+
+- Add integer-paisa bill allocations by equal share, ordering customer/device, custom amount and whole-item quantity.
+- Add idempotent partial counter receipts, shared payment history, exact remaining balances and table closing only after full settlement.
+- Add SSLCOMMERZ hosted checkout, authenticated server verification, IPN callbacks, amount holds, reconciliation and manager risk review.
+- Add optional customer accounts, secure sessions, profile/password updates, cross-device history and current-menu reorder previews.
+- Add admin coupon management with dates/spend/usage limits and a transactional loyalty earn/redemption ledger.
+- Add time/capacity-aware table reservations, cancellation/no-show, seating, waiting-list management and reservation settings.
+- Coordinate new reservations with existing private-event holds; retain the existing guest ordering, reviews, brand and stack.
+- Extend receipts and settled-sales breakdowns for discounts and mixed payment methods; retain legacy bill compatibility.
+- Add commerce/gateway/reservation integration tests and Bengali upgrade/acceptance instructions.
+
 ## 2.1.0
 
 - Add table-wide service request tracking, staff acknowledgement, completion, sidebar counts and optional floor alert sounds.

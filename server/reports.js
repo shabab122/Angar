@@ -60,7 +60,9 @@ export async function salesReport(store, window) {
               $group: {
                 _id: null,
                 revenueMinor: { $sum: "$totalMinor" },
-                subtotalMinor: { $sum: "$subtotalMinor" },
+                subtotalMinor: {
+                  $sum: { $ifNull: ["$netSubtotalMinor", "$subtotalMinor"] },
+                },
                 serviceChargeMinor: { $sum: "$chargeMinor" },
                 bills: { $sum: 1 },
               },
@@ -84,12 +86,30 @@ export async function salesReport(store, window) {
           ],
           payments: [
             {
-              $group: {
-                _id: { $ifNull: ["$payment.method", "unknown"] },
-                revenueMinor: { $sum: "$totalMinor" },
-                bills: { $sum: 1 },
+              $set: {
+                receiptPayments: {
+                  $cond: [
+                    { $gt: [{ $size: { $ifNull: ["$payments", []] } }, 0] },
+                    "$payments",
+                    [
+                      {
+                        method: { $ifNull: ["$payment.method", "unknown"] },
+                        amountMinor: "$totalMinor",
+                      },
+                    ],
+                  ],
+                },
               },
             },
+            { $unwind: "$receiptPayments" },
+            {
+              $group: {
+                _id: "$receiptPayments.method",
+                revenueMinor: { $sum: "$receiptPayments.amountMinor" },
+                billIds: { $addToSet: "$_id" },
+              },
+            },
+            { $project: { revenueMinor: 1, bills: { $size: "$billIds" } } },
             { $sort: { revenueMinor: -1, _id: 1 } },
           ],
           popular: [

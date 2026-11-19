@@ -1,13 +1,46 @@
-# Angar Kitchen · React v2.1
+# Angar Kitchen · React v2.2
 
 বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
 
 **প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
 
 
-## v2.1-এ শুধু নির্বাচিত পাঁচটি আপডেট
+## v2.2 — এই release-এর পাঁচটি নতুন ফিচার
 
-আগের React v2-এর design, menu, cart, billing, reviews, events ও technology stack রাখা হয়েছে। এই release-এর scope:
+**Base: Angar_Kitchen_React_v2.1.zip।** আগের brand/design, React–Express–MongoDB stack, QR ordering, kitchen/floor flow, reviews ও events রেখে যোগ হয়েছে:
+
+| ফিচার | কোথায় ব্যবহার করবেন |
+|---|---|
+| Split bills / partial payments | Cashier/Admin → Counter & bills → Finalize → Payments & splits। Equal, ordering customer/device, exact amount বা whole-item quantity দিয়ে ভাগ। প্রতিটি receipt একই bill balance কমায়; পুরোটা পরিশোধের পরই table বন্ধ হয়। |
+| SSLCOMMERZ integration | Guest → My orders → final table bill → online checkout। Provider verification/IPN, duplicate protection, held amounts ও staff reconciliation। নিজের merchant credentials ও public HTTPS callback configure করতে হবে। |
+| Customer accounts | Header-এর account icon → registration/login, profile, password change, points ও paginated order history। Order again বর্তমান দাম/options/availability যাচাই করে review করার জন্য cart প্রস্তুত করে। Guest QR ordering আগের মতোই আছে। |
+| Coupons / loyalty | Admin → Coupons & loyalty। Guest account → offers; My orders → table bill → coupon/points নির্বাচন, bill finalize হওয়ার আগে। Expiry, minimum spend, global/account usage limits ও points ledger আছে। |
+| Reservations / waiting list | Website → Reserve a table; Staff → Reservations & queue। সময়/party size অনুযায়ী booking, cancellation, no-show, reserved seating, waiting-list call/seat ও table capacity/settings। |
+
+### v2.1 থেকে data রেখে upgrade
+
+1. পুরোনো app-এ `Ctrl+C` দিন। Database চালু রাখুন; পুরোনো folder ও database backup রাখুন।
+2. নতুন ZIP আলাদা folder-এ extract করুন। পুরোনো `.env` copy করুন; একই MongoDB URI/database, cookie secret ও origin রাখুন। পুরোনো photo থাকলে `data/reviews` copy করুন বা একই persistent `UPLOAD_DIR` দিন।
+3. নতুন `angar-kitchen-react` folder-এ:
+
+```bash
+npm ci
+npm run setup
+npm run build
+npm start
+```
+
+`setup` missing optional gateway fields যোগ করে; existing values বদলায় না। Existing database-এ demo seed লাগবে না। নতুন folder থেকে দ্বিতীয় Compose database চালাবেন না। New collections/indexes startup-এ তৈরি হয়; reset/destructive migration লাগবে না।
+
+Website: http://localhost:3000 · Staff: http://localhost:3000/staff। **পুরো setup, payment terms, booking rules ও test checklist: `UPGRADE_v2.2_BN.md`।**
+
+### গুরুত্বপূর্ণ payment setup
+
+SSLCOMMERZ-এর implementation আছে; merchant account/credentials ছাড়া online টাকা কাটা যায় না। Default `sandbox`। `.env`-এ নিজের `SSLCOMMERZ_STORE_ID`, `SSLCOMMERZ_STORE_PASSWORD` ও public `SSLCOMMERZ_PUBLIC_ORIGIN` দিন। Public browser testing-এ `APP_ORIGIN`-ও একই HTTPS origin রাখুন। `/api/payments/sslcommerz/ipn` merchant dashboard-এ IPN URL হবে। Live enable করার আগে merchant sandbox দিয়ে নিজে পূর্ণ acceptance test করুন। এই deliverable-এর gateway tests controlled provider responses দিয়ে যাচাই হয়েছে; real merchant sandbox/live charge করা হয়নি। Counter payment আগের মতোই কাজ করে।
+
+## v2.1-এর সংরক্ষিত ফিচার
+
+আগের React v2-এর design, menu, cart, billing, reviews, events ও technology stack রাখা হয়েছে। v2.1 release-এ যোগ হওয়া ফিচারগুলো v2.2-তেও রাখা হয়েছে:
 
 | ফিচার | ব্যবহার |
 |---|---|
@@ -90,7 +123,7 @@ npm run tables -- T01
 7. কাউন্টারে টাকা সত্যিই পাওয়ার পরে method/reference এবং confirmation checkbox দিয়ে **Record payment** করুন। Receipt পাওয়া যাবে, table visit বন্ধ হবে।
 8. Guest public/private feedback ও optional photo দিতে পারেন। Admin **Reviews** থেকে reason দিয়ে hide/publish ও reply দিতে পারেন। Private feedback public menu-তে প্রকাশ হয় না। শুধু কম star দেওয়ার কারণে review hide করা উচিত নয়।
 
-একই browser profile-এর staff tab একই login ব্যবহার করে। বিভিন্ন station একসঙ্গে চালাতে আলাদা browser profile ব্যবহার করুন। Guest account লাগে না; order ownership browser cookie দিয়ে নির্ধারিত। অন্য browser/device-এ পুরোনো history পাওয়া যাবে না। একই টেবিলের দ্বিতীয় ফোন নিজের QR scan করে নিজস্ব order দিতে পারবে। Staff UI ইংরেজিতে, guest UI বাংলা/ইংরেজিতে।
+একই browser profile-এর staff tab একই login ব্যবহার করে। বিভিন্ন station একসঙ্গে চালাতে আলাদা browser profile ব্যবহার করুন। Guest account লাগে না; guest order ownership signed browser cookie দিয়ে নির্ধারিত। Customer account-এ login করলে account history অন্য device-এও পাওয়া যায়। Sign-in-এর সময় এই browser-এর unclaimed guest orders/account bookings account-এর সঙ্গে যুক্ত হয়। একই টেবিলের দ্বিতীয় ফোন নিজের QR scan করে নিজস্ব order দিতে পারবে। Staff UI ইংরেজিতে, guest UI বাংলা/ইংরেজিতে।
 
 ## কী তৈরি হয়েছে
 
@@ -101,13 +134,13 @@ npm run tables -- T01
 | QR ও session | Physical table QR, staff open/close visit, context, QR rotate ও print command |
 | Order | Cart, note, server-side price/option validation, retry deduplication, history/progress |
 | Kitchen ও floor | Admin accept/decline, pre-cooking guest change approvals, kitchen stage timers, waiter serving, manual order, acknowledged service/bill requests, optional sound alert |
-| Billing | একই visit-এর সব served order এক bill, exact paisa calculation, configurable service charge, finalized lock, verified counter payment record, printable receipt |
+| Billing | একই visit-এর bill, coupon/points, equal/customer/item/amount splits, partial counter receipts, held online attempts, exact remaining balance ও printable receipt |
 | Feedback | Served-item ownership, one feedback per dish/order, stars, liked/improve fields, public/private consent, photo, moderation/reply |
 | Events | Inquiry, spaces/packages/capacity, quote versions, expiring holds, shared-space ও cleanup overlap check, guest acceptance, verified deposit record, status |
 | Admin | Live overview, paid sales reports/CSV, menu create/edit, kitchen availability controls, ordering pause, restaurant settings, role-based queues |
 | Menu guide | Budget, group size ও spice অনুযায়ী বর্তমান মেনু থেকে deterministic matching; external AI service লাগে না |
 
-**পরবর্তী integration/কাজ:** merchant gateway/webhook, online payment verification, automatic refunds, delivery/pickup, POS/printer, external AI chatbot, multi-branch/multi-tenant SaaS, staff account management UI ও event configuration editor। Menu guide-কে AI বলা হয়নি। bKash/Nagad/card selection বাস্তবে পাওয়া counter payment **রেকর্ড** করে; online টাকা কাটে না। Event deposit-ও staff-এর verified record। Accepted/deposited event-এর cancellation/refund automation নেই।
+**পরবর্তী integration/কাজ:** automatic refunds, delivery/pickup, POS/printer, external AI chatbot, multi-branch/multi-tenant SaaS, staff account management UI ও event configuration editor। Menu guide-কে AI বলা হয়নি। Counter-এর bKash/Nagad/card selection বাস্তবে পাওয়া টাকা **রেকর্ড** করে; online টাকা কাটার জন্য পৃথক SSLCOMMERZ checkout আছে। Event deposit-ও staff-এর verified record। Accepted/deposited event-এর cancellation/refund automation নেই।
 
 প্রথম বিক্রির আগে restaurant-specific menu/fees, staff workflow, event terms, legal/tax rules ও বাস্তব devices দিয়ে acceptance test প্রয়োজন। এটি চালানো যায় এমন প্রথম product version; production hosting, merchant onboarding ও operational approval আলাদা কাজ।
 
@@ -152,7 +185,11 @@ npm run dev
 | `client/src/styles/` | Responsive guest/staff CSS; reduced-motion support |
 | `server/app.js`, `features.js` | Express routes, role gates, guest/staff features |
 | `server/orders.js`, `order-changes.js`, `billing.js` | Validation/status, approved changes, table/dish locks, exact totals/payment |
-| `server/service-requests.js`, `reports.js` | Table request acknowledgements and paid sales/CSV |
+| `server/service-requests.js`, `reports.js` | Table request acknowledgements and settled sales/CSV |
+| `server/customer.js`, `rewards.js` | Customer sessions/history, coupons and points ledger |
+| `server/payments.js`, `bill-view.js`, `money.js` | Payment ledger, splits, exact paisa allocation and views |
+| `server/gateway.js`, `commerce.js` | SSLCOMMERZ checkout/verification, IPN, bill ownership |
+| `server/reservations.js` | Table booking, availability, waiting list and seating |
 | `server/events.js` | Requests, quotes, expiring slot holds ও deposit records |
 | `server/security.js` | Password hashing, signed cookies, staff sessions |
 | `server/db.js`, `restaurant.js` | Collections/indexes ও settings/defaults |
@@ -161,7 +198,7 @@ npm run dev
 | `dist/` | Included production frontend build; source edit করলে rebuild |
 | `test/workflow.test.js`, `operations.test.js` | Existing and v2.1 MongoDB integration tests |
 
-MongoDB-তে menu, table/session, order snapshots, reviews, staff/sessions, bills, events, service requests, settings ও sensitive-action audit records থাকে। Order/close/finalize/pay একসঙ্গে হলে transaction table document lock দিয়ে সংঘর্ষ সামলায়। Event holds একই venue lock ব্যবহার করে। Staff queue ৩ সেকেন্ড ও guest orders ৪ সেকেন্ড পরপর refresh হয়; WebSocket নয়।
+MongoDB-তে menu, table/session, order snapshots, reviews, staff/sessions, bills, events, service requests, settings ও sensitive-action audit records থাকে। Order/close/finalize/pay একসঙ্গে হলে transaction table document lock দিয়ে সংঘর্ষ সামলায়। Event holds একই venue lock ব্যবহার করে। Staff queue ৩ সেকেন্ড ও guest orders/table bill ৪ সেকেন্ড পরপর refresh হয়; WebSocket নয়। Sales reports fully settled table bills-কে settlement date অনুযায়ী গণনা করে; mixed payment methods-এর actual receipt amounts আলাদা হয়। Unpaid partial receipts bill ledger-এ থাকে, report-এ settlement-এর আগে আসে না।
 
 ## Validation ও বাস্তব ব্যবহারের প্রস্তুতি
 

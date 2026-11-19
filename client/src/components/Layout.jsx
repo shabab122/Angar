@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   Sparkles,
+  UserRound,
 } from "lucide-react";
 import { useApp } from "../lib/AppContext";
 import { Logo } from "./UI";
@@ -26,6 +27,7 @@ export function Layout() {
     ["/menu", "Our menu", "আমাদের মেনু"],
     ["/about", "Our story", "আমাদের গল্প"],
     ["/events", "Private dining", "প্রাইভেট ডাইনিং"],
+    ["/reservations", "Reserve a table", "টেবিল বুকিং"],
   ];
   return (
     <div className="site">
@@ -58,8 +60,18 @@ export function Layout() {
                 {t(en, bn)}
               </NavLink>
             ))}
+            <NavLink to="/account" className="mobile-account-link">
+              {t("My account", "আমার অ্যাকাউন্ট")}
+            </NavLink>
           </nav>
           <div className="header-actions">
+            <NavLink
+              to="/account"
+              className="orders-link header-account"
+              aria-label={t("Customer account", "গ্রাহক অ্যাকাউন্ট")}
+            >
+              <UserRound size={19} />
+            </NavLink>
             <button
               type="button"
               className="language-switch"

@@ -66,6 +66,9 @@ export function AppProvider({ children }) {
   const [dishId, setDishId] = useState(null);
   const [matcherOpen, setMatcherOpen] = useState(false);
   const [toast, setToast] = useState("");
+  const [customer, setCustomer] = useState(null);
+  const [customerReady, setCustomerReady] = useState(false);
+  const [customerError, setCustomerError] = useState("");
 
   const reloadMenu = useCallback(async () => {
     try {
@@ -90,6 +93,31 @@ export function AppProvider({ children }) {
     setRestaurant(result.restaurant);
   }, []);
 
+  const reloadCustomer = useCallback(async () => {
+    try {
+      const result = await api("/account");
+      setCustomer(result.customer);
+      setCustomerError("");
+      return result.customer;
+    } catch (error) {
+      setCustomerError(error.message);
+      throw error;
+    } finally {
+      setCustomerReady(true);
+    }
+  }, []);
+  useEffect(() => {
+    void reloadCustomer().catch(() => {});
+    const refresh = () => {
+      if (!document.hidden) void reloadCustomer().catch(() => {});
+    };
+    const timer = setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [reloadCustomer]);
   useEffect(() => {
     void reloadMenu();
     void reloadContext().catch(() => {});
@@ -244,6 +272,22 @@ export function AppProvider({ children }) {
       value={{
         language,
         setLanguage,
+        customer,
+        customerReady,
+        customerError,
+        reloadCustomer,
+        replaceCart: (items, nextNote = "") => {
+          setCart(
+            items.map((line) => ({
+              key: lineKey(line.dishId, line.variantId, line.addonIds),
+              dishId: line.dishId,
+              quantity: line.quantity,
+              ...(line.variantId ? { variantId: line.variantId } : {}),
+              addonIds: line.addonIds || [],
+            })),
+          );
+          setNote(nextNote);
+        },
         t,
         name,
         describe,

@@ -109,6 +109,10 @@ export const statusNames = {
   confirmed: "Confirmed",
   completed: "Completed",
   declined: "Declined",
+  seated: "Seated",
+  waiting: "Waiting",
+  notified: "Called by staff",
+  no_show: "No-show",
 };
 export const statusBn = {
   placed: "স্টাফের অপেক্ষায়",
@@ -119,4 +123,10 @@ export const statusBn = {
   cancelled: "বাতিল",
   paid: "পরিশোধিত",
   finalized: "পেমেন্টের অপেক্ষায়",
+  confirmed: "নিশ্চিত",
+  completed: "সম্পন্ন",
+  seated: "বসানো হয়েছে",
+  waiting: "অপেক্ষায়",
+  notified: "স্টাফ ডেকেছেন",
+  no_show: "উপস্থিত হননি",
 };
