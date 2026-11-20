@@ -34,6 +34,30 @@ export function loadConfig(env = process.env) {
     throw new Error("SMTP mode requires SMTP_HOST and MAIL_FROM.");
   if ((env.MAIL_FROM || "").match(/[\r\n]/))
     throw new Error("Invalid MAIL_FROM.");
+  const smsMode = env.SMS_MODE || "off";
+  if (!["off", "outbox", "twilio"].includes(smsMode))
+    throw new Error("SMS_MODE must be off, outbox or twilio.");
+  if (production && smsMode === "outbox")
+    throw new Error("Local SMS outbox is disabled in production.");
+  if (
+    smsMode === "twilio" &&
+    (!/^AC[a-fA-F0-9]{32}$/.test(env.TWILIO_ACCOUNT_SID || "") ||
+      !env.TWILIO_AUTH_TOKEN ||
+      !/^\+[1-9]\d{7,14}$/.test(env.TWILIO_FROM || ""))
+  )
+    throw new Error(
+      "Twilio SMS mode requires valid account credentials and an international sender number.",
+    );
+  const pushEnabled = env.WEB_PUSH_ENABLED === "true";
+  if (
+    pushEnabled &&
+    (!env.PUSH_VAPID_PUBLIC_KEY ||
+      !env.PUSH_VAPID_PRIVATE_KEY ||
+      !/^(https:\/\/|mailto:)/.test(env.PUSH_VAPID_SUBJECT || ""))
+  )
+    throw new Error(
+      "Web Push requires a complete VAPID key pair and an HTTPS or mailto subject.",
+    );
   if (production && origin.protocol !== "https:")
     throw new Error("Production requires an HTTPS APP_ORIGIN.");
   const port = Number(env.PORT || 3000);
@@ -58,6 +82,29 @@ export function loadConfig(env = process.env) {
       "SSLCOMMERZ_PUBLIC_ORIGIN must be a public HTTPS origin without a path.",
     );
   return {
+    sms: {
+      mode: smsMode,
+      accountSid: env.TWILIO_ACCOUNT_SID || "",
+      token: env.TWILIO_AUTH_TOKEN || "",
+      from: env.TWILIO_FROM || "",
+      outboxDir: path.resolve(
+        env.SMS_OUTBOX_DIR ||
+          fileURLToPath(new URL("../data/sms-outbox/", import.meta.url)),
+      ),
+    },
+    push: {
+      enabled: pushEnabled,
+      publicKey: env.PUSH_VAPID_PUBLIC_KEY || "",
+      privateKey: env.PUSH_VAPID_PRIVATE_KEY || "",
+      subject: env.PUSH_VAPID_SUBJECT || "",
+    },
+    backup: {
+      key: env.BACKUP_ENCRYPTION_KEY || "",
+      directory: path.resolve(
+        env.BACKUP_DIR ||
+          fileURLToPath(new URL("../data/backups/", import.meta.url)),
+      ),
+    },
     mail: {
       mode: mailMode,
       host: env.SMTP_HOST || "",

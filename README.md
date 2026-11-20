@@ -1,11 +1,26 @@
-# Angar Kitchen · React v2.3
+# Angar Kitchen · React v2.4
 
 বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
 
 **প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
 
 
-## v2.3 — এই release-এর পাঁচটি নতুন ফিচার
+## v2.4 — এই release-এর চারটি নতুন ফিচার
+
+**Base: Angar_Kitchen_React_v2.3.zip।** React–Express–MongoDB stack, পুরোনো design/assets এবং QR/table workflows রেখে নিচের সংযোজন করা হয়েছে।
+
+| ফিচার | কোথায় / কীভাবে ব্যবহার করবেন |
+|---|---|
+| Automated backups / recovery | Admin → Backups & recovery। Encrypted database + referenced review photos, configurable schedule/retention, private download। প্রতিটি তৈরি backup আলাদা database/media folder-এ restore করে যাচাই হয়। Recovery CLI কখনও existing database overwrite করে না। |
+| Event / excess-payment refunds | Admin/cashier → Refunds & credit notes → Event deposits & excess online payments। Original funds-এর পুরো/আংশিক request, admin approval, verified return / original-provider reconciliation ও credit note। Food sales/loyalty আলাদা থাকে। |
+| Order / reservation alerts | `/notifications` → in-app, verified email, OTP-verified SMS ও permission-based Web Push। Order updates, এক ঘণ্টার মধ্যে booking reminder, waiting-list call। Admin → Notification delivery। SMTP/Twilio/Web Push নিজের credentials দিয়ে configure করতে হবে। |
+| Takeaway / delivery | `/takeaway`; সব staff roles → Pickup & delivery। Admin hours/areas/fees চালু করেন; guest quote review, contact/address, requested time, acceptance, preparation, courier dispatch ও tracking। Existing invoices, stock, coupons/points, online/counter payment ও refunds যুক্ত আছে। |
+
+**v2.3 থেকে upgrade:** আগের app বন্ধ করে নতুন ZIP আলাদা folder-এ extract করুন। আগের `.env` ও persistent review photos রাখুন; একই MongoDB ব্যবহার করুন। `npm ci` → `npm run setup` → `npm run build` → `npm start`। Existing database-এ seed/reset করবেন না। Setup নতুন backup/VAPID keys যোগ করে, আগের configured values রাখে। Backup key-এর আলাদা নিরাপদ copy রাখুন।
+
+Pickup/delivery ও automatic backup schedule প্রথমে বন্ধ থাকে। Email/SMS/push-ও credentials ও opt-in ছাড়া বাস্তব বার্তা পাঠায় না। Pickup/delivery bills-এর নতুন policy হলো একবারে সম্পূর্ণ payment; dining-table splits/partial receipts আগের নিয়মেই থাকে। পূর্ণ setup, recovery ও acceptance guide: **`UPGRADE_v2.4_BN.md`**।
+
+## v2.3-এর সংরক্ষিত ফিচার
 
 **Base: Angar_Kitchen_React_v2.2.zip।** শুধু নির্বাচিত সংযোজন ও প্রয়োজনীয় integration hooks; পুরোনো guest pages/assets/design, tech stack ও workflows রাখা হয়েছে।
 
@@ -158,7 +173,7 @@ npm run tables -- T01
 | Admin | Live overview, paid sales reports/CSV, menu create/edit, kitchen availability controls, ordering pause, restaurant settings, role-based queues |
 | Menu guide | Budget, group size ও spice অনুযায়ী বর্তমান মেনু থেকে deterministic matching; external AI service লাগে না |
 
-**পরবর্তী integration/কাজ:** delivery/pickup, POS/printer, external AI chatbot, multi-branch/multi-tenant SaaS, event configuration editor এবং event-deposit/overpayment refund workflows। Table-bill refunds ও staff account UI v2.3-তে আছে। Menu guide-কে AI বলা হয়নি। Counter-এর bKash/Nagad/card selection বাস্তবে পাওয়া টাকা **রেকর্ড** করে; online টাকা কাটার জন্য পৃথক SSLCOMMERZ checkout আছে। Event deposit-ও staff-এর verified record। Accepted/deposited event-এর cancellation/refund automation নেই।
+**পরবর্তী integration/কাজ:** external courier dispatch/GPS, POS/thermal printer integration, multi-branch/multi-tenant support ও event configuration editor। Menu guide deterministic matching ব্যবহার করে। Counter-এর bKash/Nagad/card selection বাস্তবে পাওয়া টাকা **রেকর্ড** করে; online টাকা কাটার জন্য পৃথক SSLCOMMERZ checkout আছে। Event deposit-ও staff-এর verified record; v2.4-এ এর approval/return workflow আছে।
 
 প্রথম বিক্রির আগে restaurant-specific menu/fees, staff workflow, event terms, legal/tax rules ও বাস্তব devices দিয়ে acceptance test প্রয়োজন। এটি চালানো যায় এমন প্রথম product version; production hosting, merchant onboarding ও operational approval আলাদা কাজ।
 
@@ -239,7 +254,7 @@ Ready server `{"status":"ok"}` দেখাবে। Linux/macOS-এ `curl` ব�
 
 Photo সর্বোচ্চ 4 MB / 16 megapixels; server decode করে 1200px-এর মধ্যে WebP হিসেবে metadata ছাড়া আবার তৈরি করে। শুধু approved public photo public endpoint দেয়। Photo processing ব্যর্থ হলেও saved text feedback থাকে।
 
-QR link share করা সম্ভব; active session চলাকালে staff টেবিল মিলিয়ে order accept করবেন। Browser data clear করলে guest history/review access হারাতে পারেন। Tax/VAT ও service charge configurable, default ০/disabled; নিজের প্রযোজ্য tax rate/BIN configure করুন। পুরোনো `UPGRADE_v2.1_BN.md` ও `UPGRADE_v2.2_BN.md` historical release guides; বর্তমান feature rules-এর জন্য v2.3 guide পড়ুন।
+QR link share করা সম্ভব; active session চলাকালে staff টেবিল মিলিয়ে order accept করবেন। Browser data clear করলে guest history/review access হারাতে পারেন। Tax/VAT ও service charge configurable, default ০/disabled; নিজের প্রযোজ্য tax rate/BIN configure করুন। পুরোনো `UPGRADE_v2.1_BN.md`, `UPGRADE_v2.2_BN.md` ও `UPGRADE_v2.3_BN.md` historical guides; বর্তমান সংযোজনের জন্য v2.4 guide পড়ুন।
 
 ## সাধারণ সমস্যা
 

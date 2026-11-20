@@ -11,6 +11,7 @@ import {
   Modal,
 } from "../components/UI";
 import { Receipt } from "./Receipt";
+import { ExternalRefundSources } from "./ExternalRefunds";
 
 export function RefundsPanel({ user }) {
   const { money, notify } = useApp();
@@ -129,6 +130,7 @@ export function RefundsPanel({ user }) {
           {resource.error.message}
         </ErrorMessage>
       )}
+      <ExternalRefundSources user={user} onRequested={resource.reload} />
       <h3>Settled bills</h3>
       <div className="commerce-staff-grid">
         {resource.data?.bills.map((bill) => (
@@ -299,6 +301,20 @@ export function RefundsPanel({ user }) {
               <p>Original receipt: {action.row.receiptNo}</p>
               <p>{dhakaTime(action.row.refundedAt)}</p>
               <dl className="receipt-totals">
+                {action.row.creditNote.depositMinor > 0 && (
+                  <div>
+                    <dt>Event deposit returned</dt>
+                    <dd>{money(action.row.creditNote.depositMinor / 100)}</dd>
+                  </div>
+                )}
+                {action.row.creditNote.overpaymentMinor > 0 && (
+                  <div>
+                    <dt>Excess payment returned</dt>
+                    <dd>
+                      {money(action.row.creditNote.overpaymentMinor / 100)}
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt>Food credit</dt>
                   <dd>{money(action.row.creditNote.foodMinor / 100)}</dd>
@@ -311,6 +327,14 @@ export function RefundsPanel({ user }) {
                   <dt>Tax credit</dt>
                   <dd>{money(action.row.creditNote.taxMinor / 100)}</dd>
                 </div>
+                {action.row.creditNote.deliveryFeeMinor > 0 && (
+                  <div>
+                    <dt>Delivery fee credit</dt>
+                    <dd>
+                      {money(action.row.creditNote.deliveryFeeMinor / 100)}
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt>Refunded</dt>
                   <dd>{money(action.row.amountMinor / 100)}</dd>

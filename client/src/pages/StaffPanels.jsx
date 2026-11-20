@@ -1886,6 +1886,12 @@ export function EventsPanel({ notify, onRefresh }) {
                     Deposit {money(event.quote.deposit)} · Hold until{" "}
                     {dhakaTime(event.quote.expiresAt)}
                   </small>
+                  {event.depositRefundedMinor > 0 && (
+                    <small>
+                      Confirmed deposit refunds:{" "}
+                      {money(event.depositRefundedMinor / 100)}
+                    </small>
+                  )}
                 </div>
               )}
               <footer>

@@ -56,7 +56,9 @@ export function Orders() {
         method: "POST",
         data: { version: event.quote.version },
       });
-      notify(t("Your acceptance has been recorded.", "আপনার সম্মতি জমা হয়েছে।"));
+      notify(
+        t("Your acceptance has been recorded.", "আপনার সম্মতি জমা হয়েছে।"),
+      );
       await resource.reload();
     } catch (error) {
       notify(error.message);
@@ -80,6 +82,14 @@ export function Orders() {
         </p>
       </div>
       <TableNotice compact />
+      <div className="commerce-inline-actions">
+        <Button secondary to="/takeaway">
+          {t("Pickup & delivery orders", "টেকঅ্যাওয়ে ও ডেলিভারি অর্ডার")}
+        </Button>
+        <Button secondary to="/notifications">
+          {t("Order & reservation alerts", "অর্ডার ও বুকিংয়ের খবর")}
+        </Button>
+      </div>
       {tab === "orders" && <GuestTableBill />}
       <div className="page-tabs">
         <button
@@ -134,7 +144,10 @@ export function Orders() {
                 {order.status === "cancelled" && (
                   <ErrorMessage>
                     {order.history.at(-1)?.reason ||
-                      t("Please speak to your server.", "স্টাফের সঙ্গে কথা বলুন।")}
+                      t(
+                        "Please speak to your server.",
+                        "স্টাফের সঙ্গে কথা বলুন।",
+                      )}
                   </ErrorMessage>
                 )}
                 <ul className="ordered-items">
@@ -208,7 +221,10 @@ export function Orders() {
                             "Included in a paid table bill",
                             "পরিশোধিত টেবিল বিলে অন্তর্ভুক্ত",
                           )
-                        : t("Pay at the restaurant", "রেস্টুরেন্টে পরিশোধ করুন")}
+                        : t(
+                            "Pay at the restaurant",
+                            "রেস্টুরেন্টে পরিশোধ করুন",
+                          )}
                     </small>
                   </span>
                   <strong>{money(order.total)}</strong>
@@ -328,6 +344,16 @@ export function Orders() {
                   {t(
                     "Our team will review your request and prepare a quote here.",
                     "আমাদের টিম অনুরোধ দেখে এখানে মূল্যপ্রস্তাব পাঠাবে।",
+                  )}
+                </p>
+              )}
+              {event.depositRefundedMinor > 0 && (
+                <p className="commerce-note">
+                  {t("Deposit returned: ", "অগ্রিম ফেরত: ")}
+                  {money(event.depositRefundedMinor / 100)} ·{" "}
+                  {t(
+                    "The original deposit remains in the payment history.",
+                    "মূল অগ্রিম পেমেন্টের ইতিহাসে রাখা হয়েছে।",
                   )}
                 </p>
               )}
@@ -508,7 +534,10 @@ function ReviewForm({ target, onClose, onSaved }) {
             }
           >
             <option value="public">
-              {t("Share publicly after review", "যাচাইয়ের পর সবার সঙ্গে প্রকাশ")}
+              {t(
+                "Share publicly after review",
+                "যাচাইয়ের পর সবার সঙ্গে প্রকাশ",
+              )}
             </option>
             <option value="private">
               {t("Only the restaurant team", "শুধু রেস্টুরেন্টের টিম")}

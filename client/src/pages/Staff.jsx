@@ -14,6 +14,7 @@ import {
   MessageSquareText,
   RefreshCw,
   Settings2,
+  ShoppingBag,
   ShieldCheck,
   Table2,
   UtensilsCrossed,
@@ -30,6 +31,9 @@ import { RefundsPanel } from "./RefundsPanel";
 import { StaffAccounts, StaffPassword } from "./StaffAccounts";
 import { InventoryPanel } from "./InventoryPanel";
 import { InvoiceSettings } from "./InvoiceSettings";
+import { BackupsPanel } from "./BackupsPanel";
+import { NotificationLogs } from "./Notifications";
+import { FulfillmentDesk } from "./Takeaway";
 import {
   BillingPanel,
   EventsPanel,
@@ -46,6 +50,12 @@ import {
 const navigation = [
   ["overview", LayoutDashboard, "Overview", ["admin", "cashier"]],
   ["orders", ClipboardList, "Order desk", ["admin", "kitchen", "waiter"]],
+  [
+    "fulfillment",
+    ShoppingBag,
+    "Pickup & delivery",
+    ["admin", "kitchen", "waiter", "cashier"],
+  ],
   ["tables", Table2, "Table visits", ["admin", "waiter"]],
   ["billing", CircleDollarSign, "Counter & bills", ["admin", "cashier"]],
   ["events", CalendarDays, "Private events", ["admin"]],
@@ -62,6 +72,8 @@ const navigation = [
   ["team", ShieldCheck, "Staff accounts", ["admin"]],
   ["inventory", MenuSquare, "Ingredients & recipes", ["admin", "kitchen"]],
   ["invoices", Settings2, "Tax & invoices", ["admin"]],
+  ["backups", ShieldCheck, "Backups & recovery", ["admin"]],
+  ["notifications", BellRing, "Notification delivery", ["admin"]],
   [
     "access",
     ShieldCheck,
@@ -466,6 +478,7 @@ export function Dashboard({ user, onSignedOut }) {
             />
           )}
           {tab === "orders" && <OrdersPanel {...common} queue={queue} />}
+          {tab === "fulfillment" && <FulfillmentDesk role={user.role} />}
           {tab === "tables" && <TablesPanel {...common} />}
           {tab === "billing" && <BillingPanel {...common} />}
           {tab === "events" && <EventsPanel {...common} />}
@@ -484,6 +497,8 @@ export function Dashboard({ user, onSignedOut }) {
           {tab === "team" && <StaffAccounts />}
           {tab === "inventory" && <InventoryPanel {...common} />}
           {tab === "invoices" && <InvoiceSettings />}
+          {tab === "backups" && <BackupsPanel />}
+          {tab === "notifications" && <NotificationLogs />}
           {tab === "access" && <StaffPassword onSignedOut={onSignedOut} />}
           {tab === "settings" && <SettingsPanel {...common} />}
         </main>

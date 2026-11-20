@@ -41,6 +41,12 @@ export function BillSummary({ bill }) {
         <span>{t("Service charge", "সার্ভিস চার্জ")}</span>
         <strong>{money(bill.charge)}</strong>
       </div>
+      {bill.deliveryFee > 0 && (
+        <div>
+          <span>{t("Delivery fee", "ডেলিভারি ফি")}</span>
+          <strong>{money(bill.deliveryFee)}</strong>
+        </div>
+      )}
       {bill.tax > 0 && (
         <div>
           <span>
@@ -448,7 +454,11 @@ export function CounterBillDialog({ bill: initial, onClose, onDone }) {
     <Modal
       open
       onClose={onClose}
-      title={"Table " + bill.tableNumber.slice(1) + " · Payments & splits"}
+      title={
+        bill.fulfillmentId
+          ? bill.fulfillmentCode + " · Payment"
+          : "Table " + bill.tableNumber.slice(1) + " · Payments & splits"
+      }
       className="commerce-bill-dialog"
     >
       <BillSummary bill={bill} />
@@ -457,29 +467,33 @@ export function CounterBillDialog({ bill: initial, onClose, onDone }) {
           {resource.error.message}
         </ErrorMessage>
       )}
-      {bill.status !== "paid" && (
+      {bill.status === "finalized" && (
         <>
-          <div className="commerce-inline-actions">
-            <Button
-              secondary
-              className="button-small"
-              onClick={() => setSplitting(!splitting)}
-              disabled={bill.paidMinor > 0 || bill.reservedMinor > 0}
-            >
-              <Split size={15} />
-              {splitting ? "Hide split editor" : "Set / change splits"}
-            </Button>
-          </div>
-          {splitting && (
-            <SplitEditor
-              bill={bill}
-              onUpdated={(next) => {
-                setBill(next);
-                setSplitId(next.splits[0]?.id || "");
-                setSplitting(false);
-                void resource.reload();
-              }}
-            />
+          {!bill.fulfillmentId && (
+            <>
+              <div className="commerce-inline-actions">
+                <Button
+                  secondary
+                  className="button-small"
+                  onClick={() => setSplitting(!splitting)}
+                  disabled={bill.paidMinor > 0 || bill.reservedMinor > 0}
+                >
+                  <Split size={15} />
+                  {splitting ? "Hide split editor" : "Set / change splits"}
+                </Button>
+              </div>
+              {splitting && (
+                <SplitEditor
+                  bill={bill}
+                  onUpdated={(next) => {
+                    setBill(next);
+                    setSplitId(next.splits[0]?.id || "");
+                    setSplitting(false);
+                    void resource.reload();
+                  }}
+                />
+              )}
+            </>
           )}
           <form className="commerce-form" onSubmit={submit}>
             <h3>
@@ -509,6 +523,7 @@ export function CounterBillDialog({ bill: initial, onClose, onDone }) {
                 <input
                   required
                   inputMode="decimal"
+                  readOnly={Boolean(bill.fulfillmentId)}
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
                 />
@@ -557,8 +572,9 @@ export function CounterBillDialog({ bill: initial, onClose, onDone }) {
               {busy ? "Recording…" : "Record this payment"}
             </Button>
             <p className="commerce-note">
-              The table stays open until the remaining balance is zero. Online
-              reserved amounts must be reconciled before paying them again.
+              {bill.fulfillmentId
+                ? "Record the full payment after verifying the money was received. Handover is completed separately in the pickup/delivery desk."
+                : "The table stays open until the remaining balance is zero. Online reserved amounts must be reconciled before paying them again."}
             </p>
           </form>
         </>
@@ -629,7 +645,7 @@ export function OnlinePaymentForm({ bill }) {
       setBusy(false);
     }
   }
-  if (bill.status === "paid") return null;
+  if (bill.status !== "finalized") return null;
   if (options.loading) return <Loading />;
   if (!options.data?.enabled)
     return (
@@ -648,7 +664,10 @@ export function OnlinePaymentForm({ bill }) {
       </h3>
       {options.data.mode === "sandbox" && (
         <span className="soft-badge">
-          {t("Sandbox · test payments only", "Sandbox · শুধু পরীক্ষামূলক পেমেন্ট")}
+          {t(
+            "Sandbox · test payments only",
+            "Sandbox · শুধু পরীক্ষামূলক পেমেন্ট",
+          )}
         </span>
       )}
       {bill.splits?.length > 0 && (
@@ -672,6 +691,7 @@ export function OnlinePaymentForm({ bill }) {
         <input
           inputMode="decimal"
           required
+          readOnly={Boolean(bill.fulfillmentId)}
           value={amount}
           onChange={(event) => setAmount(event.target.value)}
         />

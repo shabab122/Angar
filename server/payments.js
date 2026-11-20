@@ -36,38 +36,59 @@ export async function finishBill(store, bill, session, now = new Date()) {
     },
     { session },
   );
-  const table = await store.tables.findOneAndUpdate(
-    { _id: bill.tableId, activeVisitId: bill.visitId, billId: bill._id },
-    {
-      $set: {
-        activeVisitId: null,
-        openedAt: null,
-        billingState: "open",
-        lastBillId: bill._id,
-        promotion: null,
+  if (bill.fulfillmentId) {
+    const updated = await store.fulfillments.updateOne(
+      {
+        _id: bill.fulfillmentId,
+        billId: bill._id,
+        status: { $ne: "cancelled" },
       },
-      $unset: { billId: "", reservationId: "", waitlistId: "" },
-      $inc: { revision: 1 },
-    },
-    { session, returnDocument: "before" },
-  );
-  if (!table)
-    throw new HttpError(
-      409,
-      "TABLE_CHANGED",
-      "The table visit changed. Refresh before recording payment.",
-    );
-  if (table.reservationId)
-    await store.reservations.updateOne(
-      { _id: table.reservationId, status: "seated" },
-      { $set: { status: "completed", completedAt: now } },
+      {
+        $set: { paymentStatus: "paid", updatedAt: now },
+        $inc: { revision: 1 },
+      },
       { session },
     );
-  await store.serviceRequests.updateMany(
-    { tableId: bill.tableId, visitId: bill.visitId, status: "open" },
-    { $set: { status: "resolved", resolvedAt: now, resolvedBy: "billing" } },
-    { session },
-  );
+    if (!updated.matchedCount)
+      throw new HttpError(
+        409,
+        "FULFILLMENT_CHANGED",
+        "This order changed. Refresh before recording payment.",
+      );
+  } else {
+    const table = await store.tables.findOneAndUpdate(
+      { _id: bill.tableId, activeVisitId: bill.visitId, billId: bill._id },
+      {
+        $set: {
+          activeVisitId: null,
+          openedAt: null,
+          billingState: "open",
+          lastBillId: bill._id,
+          promotion: null,
+        },
+        $unset: { billId: "", reservationId: "", waitlistId: "" },
+        $inc: { revision: 1 },
+      },
+      { session, returnDocument: "before" },
+    );
+    if (!table)
+      throw new HttpError(
+        409,
+        "TABLE_CHANGED",
+        "The table visit changed. Refresh before recording payment.",
+      );
+    if (table.reservationId)
+      await store.reservations.updateOne(
+        { _id: table.reservationId, status: "seated" },
+        { $set: { status: "completed", completedAt: now } },
+        { session },
+      );
+    await store.serviceRequests.updateMany(
+      { tableId: bill.tableId, visitId: bill.visitId, status: "open" },
+      { $set: { status: "resolved", resolvedAt: now, resolvedBy: "billing" } },
+      { session },
+    );
+  }
   await awardLoyalty(store, bill, session);
   await store.audit.insertOne(
     { type: "bill.paid", billId: bill._id, method: payment.method, at: now },
@@ -120,6 +141,12 @@ export async function appendPayment(store, bill, input, session) {
   const remaining = remainingMinor(bill, input.splitId),
     held = heldMinor(bill, input.splitId);
   const amount = input.amountMinor ?? remaining;
+  if (bill.fulfillmentId && (input.splitId || amount !== remaining))
+    throw new HttpError(
+      409,
+      "FULL_PAYMENT_REQUIRED",
+      "Pickup and delivery orders require the full remaining balance in one payment.",
+    );
   if (!Number.isSafeInteger(amount) || amount <= 0 || amount > remaining - held)
     throw new HttpError(
       409,
@@ -227,6 +254,12 @@ export function registerSplitBills(api, store, billingRoles, requireId) {
       );
       if (!bill)
         throw new HttpError(404, "NOT_FOUND", "This bill could not be found.");
+      if (bill.fulfillmentId)
+        throw new HttpError(
+          409,
+          "SPLIT_UNAVAILABLE",
+          "Pickup and delivery orders use a single full payment.",
+        );
       if (bill.status !== "finalized" || paidMinor(bill) || heldMinor(bill))
         throw new HttpError(
           409,

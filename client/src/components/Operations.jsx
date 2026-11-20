@@ -136,7 +136,10 @@ export function GuestServiceControls() {
                 : t("Waiter", "স্টাফ")}
             :{" "}
             {row.status === "acknowledged"
-              ? t("Staff acknowledged; on the way", "স্টাফ অনুরোধ দেখেছেন; আসছেন")
+              ? t(
+                  "Staff acknowledged; on the way",
+                  "স্টাফ অনুরোধ দেখেছেন; আসছেন",
+                )
               : t("Waiting for staff", "স্টাফের অপেক্ষায়")}
           </small>
         ))}
@@ -287,7 +290,8 @@ export function SalesReportsPanel() {
         <div>
           <h2>Sales reports</h2>
           <p>
-            Paid table bills only · Bangladesh time (UTC+6) · Amounts in BDT
+            Paid dining, pickup and delivery bills · Bangladesh time (UTC+6) ·
+            Amounts in BDT
           </p>
         </div>
         <Button secondary className="button-small" onClick={resource.reload}>
@@ -370,6 +374,10 @@ export function SalesReportsPanel() {
               ["Service charges", data.summary.serviceChargeMinor],
               ["Average paid bill", data.summary.averageBillMinor],
               ["Tax collected", data.accounting?.taxMinor || 0],
+              [
+                "Delivery fees (before tax)",
+                data.accounting?.deliveryFeesMinor || 0,
+              ],
               ["Refunds given", data.accounting?.refundsMinor || 0],
               [
                 "Collected minus refunds",

@@ -15,6 +15,15 @@ export async function connectDatabase(config) {
       staff: db.collection("staff"),
       sessions: db.collection("staffSessions"),
       settings: db.collection("settings"),
+      backupJobs: db.collection("backupJobs"),
+      runtimeLeases: db.collection("runtimeLeases"),
+      notificationPreferences: db.collection("notificationPreferences"),
+      notificationJobs: db.collection("notificationJobs"),
+      notificationsInbox: db.collection("notificationsInbox"),
+      pushSubscriptions: db.collection("pushSubscriptions"),
+      phoneChallenges: db.collection("phoneChallenges"),
+      phoneSendLimits: db.collection("phoneSendLimits"),
+      fulfillments: db.collection("fulfillments"),
       bills: db.collection("bills"),
       audit: db.collection("auditLog"),
       events: db.collection("events"),
@@ -77,6 +86,37 @@ export async function connectDatabase(config) {
     ]);
     await Promise.all([
       collections.customers.createIndex({ email: 1 }, { unique: true }),
+      collections.backupJobs.createIndex({ status: 1, createdAt: 1 }),
+      collections.notificationPreferences.createIndex({ lastScannedAt: 1 }),
+      collections.notificationJobs.createIndex({ status: 1, dueAt: 1 }),
+      collections.notificationJobs.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 },
+      ),
+      collections.notificationsInbox.createIndex({
+        actorKey: 1,
+        createdAt: -1,
+      }),
+      collections.notificationsInbox.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 },
+      ),
+      collections.pushSubscriptions.createIndex({ actorKey: 1 }),
+      collections.phoneChallenges.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 },
+      ),
+      collections.phoneSendLimits.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 },
+      ),
+      collections.fulfillments.createIndex({ code: 1 }, { unique: true }),
+      collections.fulfillments.createIndex(
+        { guestHash: 1, requestKey: 1 },
+        { unique: true },
+      ),
+      collections.fulfillments.createIndex({ customerId: 1, createdAt: -1 }),
+      collections.fulfillments.createIndex({ status: 1, createdAt: 1 }),
       collections.accountTokens.createIndex(
         { expiresAt: 1 },
         { expireAfterSeconds: 0 },
@@ -92,6 +132,7 @@ export async function connectDatabase(config) {
         },
       ),
       collections.refunds.createIndex({ refundedAt: -1 }),
+      collections.refunds.createIndex({ source: 1, sourceId: 1, status: 1 }),
       collections.ingredients.createIndex({ nameKey: 1 }, { unique: true }),
       collections.stockMovements.createIndex({ key: 1 }, { unique: true }),
       collections.stockMovements.createIndex({ ingredientId: 1, at: -1 }),

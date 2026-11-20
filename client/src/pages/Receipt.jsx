@@ -29,7 +29,9 @@ export function Receipt({ staff = false, bill: provided }) {
       <article className="receipt-sheet">
         <Logo />
         <span className="receipt-kicker">
-          {t("TABLE RECEIPT", "টেবিলের রসিদ")}
+          {bill.fulfillmentId
+            ? t("ORDER RECEIPT", "অর্ডারের রসিদ")
+            : t("TABLE RECEIPT", "টেবিলের রসিদ")}
         </span>
         <h1>{bill.receiptNo}</h1>
         {bill.invoice && (
@@ -52,7 +54,11 @@ export function Receipt({ staff = false, bill: provided }) {
           </div>
         )}
         <div className="receipt-meta">
-          <span>{t("Table ", "টেবিল ") + bill.tableNumber.slice(1)}</span>
+          <span>
+            {bill.fulfillmentId
+              ? bill.fulfillmentCode
+              : t("Table ", "টেবিল ") + bill.tableNumber.slice(1)}
+          </span>
           <span>{dhakaTime(bill.createdAt, false, language)}</span>
         </div>
         <table className="receipt-table">
@@ -108,6 +114,12 @@ export function Receipt({ staff = false, bill: provided }) {
               <dd>{money(bill.tax)}</dd>
             </div>
           )}
+          {bill.deliveryFee > 0 && (
+            <div>
+              <dt>{t("Delivery fee", "ডেলিভারি ফি")}</dt>
+              <dd>{money(bill.deliveryFee)}</dd>
+            </div>
+          )}
           <div className="receipt-grand">
             <dt>{t("Total", "মোট")}</dt>
             <dd>{money(bill.total)}</dd>
@@ -122,7 +134,8 @@ export function Receipt({ staff = false, bill: provided }) {
         </p>
         {bill.payment?.reference && (
           <p className="receipt-reference">
-            {t("Payment reference", "পেমেন্ট রেফারেন্স")} {bill.payment.reference}
+            {t("Payment reference", "পেমেন্ট রেফারেন্স")}{" "}
+            {bill.payment.reference}
           </p>
         )}
         {bill.balanceMinor > 0 && (

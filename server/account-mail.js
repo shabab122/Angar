@@ -18,7 +18,7 @@ export function mailStatus(config) {
   return { enabled: mailReady(config), mode: config.mail?.mode || "off" };
 }
 
-async function deliver(config, message) {
+export async function deliverMail(config, message) {
   if (config.mailer) return config.mailer(message);
   if (config.mail?.mode === "outbox" && !config.production) {
     await mkdir(config.mail.outboxDir, { recursive: true, mode: 0o700 });
@@ -96,7 +96,7 @@ export async function issueAccountMail(store, config, customer, purpose) {
     "/account/action#" +
     new URLSearchParams({ purpose, token });
   try {
-    await deliver(config, {
+    await deliverMail(config, {
       to: customer.email,
       subject:
         purpose === "verify"

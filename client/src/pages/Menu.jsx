@@ -39,7 +39,10 @@ export function TableNotice({ compact = false }) {
           {t(
             "Dining with us? Scan the code on your table to place an order.",
             "আমাদের রেস্টুরেন্টে থাকলে অর্ডার দিতে টেবিলের QR স্ক্যান করুন।",
-          )}
+          )}{" "}
+          <Button secondary className="button-small" to="/takeaway">
+            {t("Takeaway & delivery", "টেকঅ্যাওয়ে ও ডেলিভারি")}
+          </Button>
         </span>
       </div>
     );
@@ -53,7 +56,10 @@ export function TableNotice({ compact = false }) {
         <p>
           {table.active
             ? table.billingState === "finalized"
-              ? t("Your bill is at the counter.", "আপনার বিল কাউন্টারে প্রস্তুত।")
+              ? t(
+                  "Your bill is at the counter.",
+                  "আপনার বিল কাউন্টারে প্রস্তুত।",
+                )
               : t(
                   "Settle in. Order whenever you’re ready.",
                   "আরাম করে বসুন। প্রস্তুত হলে অর্ডার দিন।",
@@ -209,7 +215,9 @@ export function Menu() {
                 value={sort}
                 onChange={(event) => setSort(event.target.value)}
               >
-                <option value="house">{t("House picks", "আমাদের পছন্দ")}</option>
+                <option value="house">
+                  {t("House picks", "আমাদের পছন্দ")}
+                </option>
                 <option value="rating">
                   {t("Highest rated", "সেরা রেটিং")}
                 </option>

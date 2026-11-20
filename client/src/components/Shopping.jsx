@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowRight,
   Check,
@@ -199,7 +199,10 @@ function DishDetails({ dish }) {
                     <small>
                       {review.sample
                         ? t("Sample review", "নমুনা রিভিউ")
-                        : t("Verified served order", "যাচাইকৃত পরিবেশিত অর্ডার")}
+                        : t(
+                            "Verified served order",
+                            "যাচাইকৃত পরিবেশিত অর্ডার",
+                          )}
                     </small>
                   </div>
                   <span className="review-stars">
@@ -277,6 +280,7 @@ export function CartDrawer() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const offPremise = useLocation().pathname === "/takeaway";
   useEffect(() => {
     if (cartOpen) {
       setError("");
@@ -294,6 +298,14 @@ export function CartDrawer() {
     !menuLoading;
   async function checkout(event) {
     event.preventDefault();
+    if (offPremise) {
+      setCartOpen(false);
+      navigate("/takeaway#fulfillment-checkout");
+      document
+        .getElementById("fulfillment-checkout")
+        ?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
     if (!canOrder || busy) return;
     const data = {
       visitKey: table.visitKey,
@@ -364,7 +376,10 @@ export function CartDrawer() {
       {!count ? (
         <EmptyState
           icon={ShoppingBag}
-          title={t("Your next craving awaits.", "কার্টে পছন্দের খাবার যোগ করুন।")}
+          title={t(
+            "Your next craving awaits.",
+            "কার্টে পছন্দের খাবার যোগ করুন।",
+          )}
           text={t(
             "Start with a house favourite and make it a meal.",
             "একটি পছন্দের খাবার দিয়ে শুরু করুন।",
@@ -381,25 +396,32 @@ export function CartDrawer() {
               <Table2 size={22} />
               <div>
                 <strong>
-                  {table
-                    ? t("Table ", "টেবিল ") + table.number.slice(1)
-                    : t("Browsing the menu", "মেনু দেখছেন")}
+                  {offPremise
+                    ? t("Pickup & delivery", "টেকঅ্যাওয়ে ও ডেলিভারি")
+                    : table
+                      ? t("Table ", "টেবিল ") + table.number.slice(1)
+                      : t("Browsing the menu", "মেনু দেখছেন")}
                 </strong>
                 <small>
-                  {table?.active
-                    ? table.billingState === "finalized"
-                      ? t(
-                          "Your bill is finalized at the counter.",
-                          "আপনার বিল কাউন্টারে চূড়ান্ত হয়েছে।",
-                        )
+                  {offPremise
+                    ? t(
+                        "Review the delivery fee, time and contact details on the order page.",
+                        "অর্ডার পেজে ডেলিভারি ফি, সময় ও যোগাযোগের তথ্য দেখুন।",
+                      )
+                    : table?.active
+                      ? table.billingState === "finalized"
+                        ? t(
+                            "Your bill is finalized at the counter.",
+                            "আপনার বিল কাউন্টারে চূড়ান্ত হয়েছে।",
+                          )
+                        : t(
+                            "Ordering at Angar, Dhanmondi",
+                            "আঙার, ধানমন্ডিতে অর্ডার করছেন",
+                          )
                       : t(
-                          "Ordering at Angar, Dhanmondi",
-                          "আঙার, ধানমন্ডিতে অর্ডার করছেন",
-                        )
-                    : t(
-                        "Scan your table’s QR to place this order.",
-                        "অর্ডার দিতে টেবিলের QR স্ক্যান করুন।",
-                      )}
+                          "Scan your table’s QR to place this order.",
+                          "অর্ডার দিতে টেবিলের QR স্ক্যান করুন।",
+                        )}
                 </small>
               </div>
             </div>
@@ -479,12 +501,30 @@ export function CartDrawer() {
               <strong>{money(total)}</strong>
             </div>
             <p>
-              {t(
-                "Pay at the restaurant. Any configured service charge is included on your table’s final bill.",
-                "রেস্টুরেন্টে বিল পরিশোধ করুন। প্রযোজ্য সার্ভিস চার্জ টেবিলের চূড়ান্ত বিলে দেখা যাবে।",
-              )}
+              {offPremise
+                ? t(
+                    "Review your complete pickup or delivery total before confirming.",
+                    "নিশ্চিত করার আগে টেকঅ্যাওয়ে বা ডেলিভারির সম্পূর্ণ দাম দেখুন।",
+                  )
+                : t(
+                    "Pay at the restaurant. Any configured service charge is included on your table’s final bill.",
+                    "রেস্টুরেন্টে বিল পরিশোধ করুন। প্রযোজ্য সার্ভিস চার্জ টেবিলের চূড়ান্ত বিলে দেখা যাবে।",
+                  )}
             </p>
-            {restaurant?.tax?.enabled && <p>{restaurant.tax.label} {restaurant.tax.rateBps / 100}%{restaurant.tax.mode === "inclusive" ? t(" is included in listed prices.", " তালিকার দামে অন্তর্ভুক্ত।") : t(" is added to the final bill after discounts.", " ছাড়ের পরে চূড়ান্ত বিলে যোগ হবে।")}</p>}
+            {restaurant?.tax?.enabled && (
+              <p>
+                {restaurant.tax.label} {restaurant.tax.rateBps / 100}%
+                {restaurant.tax.mode === "inclusive"
+                  ? t(
+                      " is included in listed prices.",
+                      " তালিকার দামে অন্তর্ভুক্ত।",
+                    )
+                  : t(
+                      " is added to the final bill after discounts.",
+                      " ছাড়ের পরে চূড়ান্ত বিলে যোগ হবে।",
+                    )}
+              </p>
+            )}
             {restaurant?.orderingEnabled === false && (
               <ErrorMessage>
                 {t(
@@ -497,11 +537,13 @@ export function CartDrawer() {
             <button
               type="submit"
               className="button button-primary button-wide"
-              disabled={!canOrder || busy}
+              disabled={(offPremise ? !available : !canOrder) || busy}
             >
-              {busy
-                ? t("Sending to the team…", "অর্ডার যাচ্ছে…")
-                : t("Place my order", "অর্ডার দিন")}
+              {offPremise
+                ? t("Review pickup / delivery", "টেকঅ্যাওয়ে / ডেলিভারি দেখুন")
+                : busy
+                  ? t("Sending to the team…", "অর্ডার যাচ্ছে…")
+                  : t("Place my order", "অর্ডার দিন")}
               <ArrowRight size={18} />
             </button>
             <div className="checkout-assurance">

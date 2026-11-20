@@ -618,6 +618,8 @@ export function createApp(store, config, frontendMiddleware) {
         "/staff",
         "/account",
         "/account/action",
+        "/notifications",
+        "/takeaway",
         "/reservations",
         "/payment",
         "/receipt/:id",

@@ -12,6 +12,8 @@ import { Receipt } from "./pages/Receipt";
 import { Staff } from "./pages/Staff";
 import { Account } from "./pages/Account";
 import { AccountAction } from "./pages/AccountAction";
+import { Notifications } from "./pages/Notifications";
+import { Takeaway } from "./pages/Takeaway";
 import { Reservations } from "./pages/Reservations";
 import { Payment } from "./pages/Payment";
 import { Button, EmptyState } from "./components/UI";
@@ -20,6 +22,7 @@ import "./styles/staff.css";
 import "./styles/operations.css";
 import "./styles/commerce.css";
 import "./styles/management.css";
+import "./styles/v24.css";
 
 function App() {
   return (
@@ -33,6 +36,8 @@ function App() {
           <Route path="events" element={<Events />} />
           <Route path="account" element={<Account />} />
           <Route path="account/action" element={<AccountAction />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="takeaway" element={<Takeaway />} />
           <Route path="reservations" element={<Reservations />} />
           <Route path="payment" element={<Payment />} />
           <Route path="receipt/:id" element={<Receipt />} />

@@ -129,6 +129,14 @@ export function Account() {
       {customerError && (
         <ErrorMessage onRetry={reloadCustomer}>{customerError}</ErrorMessage>
       )}
+      <div className="commerce-inline-actions">
+        <Link
+          className="button button-secondary button-small"
+          to="/notifications"
+        >
+          {t("Order & reservation alerts", "অর্ডার ও বুকিং আপডেট")}
+        </Link>
+      </div>
       {!customerReady ? (
         <Loading />
       ) : !customer ? (
@@ -737,7 +745,8 @@ function AccountHistory() {
               </p>
             ))}
             <p>
-              {proposal.items.length} {t("available selections", "উপলব্ধ খাবার")}
+              {proposal.items.length}{" "}
+              {t("available selections", "উপলব্ধ খাবার")}
             </p>
             {cart.length > 0 && (
               <p>
@@ -755,7 +764,10 @@ function AccountHistory() {
                 setCartOpen(true);
               }}
             >
-              {t("Use these items and review cart", "এই খাবার নিয়ে কার্ট দেখুন")}
+              {t(
+                "Use these items and review cart",
+                "এই খাবার নিয়ে কার্ট দেখুন",
+              )}
             </Button>
           </div>
         </Modal>
