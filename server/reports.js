@@ -44,7 +44,7 @@ export function reportWindow(query, now = new Date()) {
 }
 
 export async function salesReport(store, window) {
-  // Only settled table bills contribute to sales. Quotes and unpaid orders do not.
+  // Only settled dining, pickup and delivery bills contribute to sales.
   const [data] = await store.bills
     .aggregate([
       {
@@ -60,6 +60,9 @@ export async function salesReport(store, window) {
               $group: {
                 _id: null,
                 taxMinor: { $sum: { $ifNull: ["$taxMinor", 0] } },
+                deliveryFeesMinor: {
+                  $sum: { $ifNull: ["$accountingDeliveryFeeMinor", 0] },
+                },
               },
             },
           ],
@@ -184,6 +187,7 @@ export async function salesReport(store, window) {
       {
         $match: {
           status: "refunded",
+          source: { $nin: ["event", "overpayment"] },
           refundedAt: { $gte: window.startAt, $lt: window.endAt },
         },
       },
@@ -199,6 +203,7 @@ export async function salesReport(store, window) {
     .toArray();
   const accounting = {
     taxMinor: data?.taxes?.[0]?.taxMinor || 0,
+    deliveryFeesMinor: data?.taxes?.[0]?.deliveryFeesMinor || 0,
     refundsMinor: refunds?.amountMinor || 0,
     refundCount: refunds?.count || 0,
     taxRefundedMinor: refunds?.taxMinor || 0,
@@ -255,6 +260,7 @@ export function reportCsv(report, section) {
         "Refunds given BDT",
         "Collected minus refunds BDT",
         "Tax refunded BDT",
+        "Delivery fees before tax BDT",
       ],
       [
         report.window.start,
@@ -268,6 +274,7 @@ export function reportCsv(report, section) {
         amount(report.accounting.refundsMinor),
         amount(report.accounting.afterRefundsMinor),
         amount(report.accounting.taxRefundedMinor),
+        amount(report.accounting.deliveryFeesMinor || 0),
       ],
     ],
     periods: [

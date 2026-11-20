@@ -7,6 +7,18 @@ import { restaurantSettings } from "./restaurant.js";
 import { financialTotals } from "./invoices.js";
 
 export async function requireBillOwner(store, bill, req, res, config) {
+  if (bill?.fulfillmentId) {
+    const own = await store.fulfillments.findOne(
+      {
+        _id: bill.fulfillmentId,
+        ...orderOwner(req, getGuest(req, res, config)),
+      },
+      { projection: { _id: 1 } },
+    );
+    if (!own)
+      throw new HttpError(404, "NOT_FOUND", "This bill could not be found.");
+    return;
+  }
   if (
     !bill ||
     !(await store.orders.findOne(

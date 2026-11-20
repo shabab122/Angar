@@ -63,6 +63,12 @@ export function Layout() {
             <NavLink to="/account" className="mobile-account-link">
               {t("My account", "আমার অ্যাকাউন্ট")}
             </NavLink>
+            <NavLink to="/takeaway" className="mobile-account-link">
+              {t("Takeaway & delivery", "টেকঅ্যাওয়ে ও ডেলিভারি")}
+            </NavLink>
+            <NavLink to="/notifications" className="mobile-account-link">
+              {t("Order alerts", "অর্ডারের খবর")}
+            </NavLink>
           </nav>
           <div className="header-actions">
             <NavLink
@@ -150,6 +156,12 @@ export function Layout() {
           <div>
             <h3>{t("At Angar", "আঙারে")}</h3>
             <Link to="/menu">{t("Explore our menu", "মেনু দেখুন")}</Link>
+            <Link to="/takeaway">
+              {t("Takeaway & delivery", "টেকঅ্যাওয়ে ও ডেলিভারি")}
+            </Link>
+            <Link to="/notifications">
+              {t("Order & reservation alerts", "অর্ডার ও বুকিংয়ের খবর")}
+            </Link>
             <Link to="/events">{t("Plan a gathering", "ইভেন্টের আয়োজন")}</Link>
             <Link to="/orders">
               {t("Your orders & events", "আপনার অর্ডার ও ইভেন্ট")}

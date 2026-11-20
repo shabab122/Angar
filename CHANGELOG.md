@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.4.0
+
+Base: `Angar_Kitchen_React_v2.3.zip`. Existing dining-table ordering, split/partial payments, staff roles, accounts, inventory, invoices, reviews, reservations, event quotes, original assets and technology stack are retained.
+
+- Added scheduled/manual AES-256-GCM encrypted database and referenced-photo backups, retention, private administrator downloads, automatic isolated restore verification and a CLI that restores only to a fresh database/media directory. Restore copies clear transient sessions, tokens and messaging jobs and disable the backup schedule.
+- Added approved full/partial event-deposit returns and verified excess-online-payment refunds through the original merchant, source-specific balances and credit notes. These returns do not reduce food sales or adjust food loyalty.
+- Added private in-app alerts, verified-email order/reservation messages, consent plus OTP-verified SMS (Twilio or private development outbox), permission-based encrypted Web Push, reservation reminders, waiting-list calls and reviewed delivery retries. Stale/opted-out deliveries are suppressed; uncertain sends are not automatically repeated.
+- Added optional pickup/delivery settings, hours, advance requests, named delivery areas, fees/minimum spend/estimates, server quotes, contact/address capture and private tracking. Staff acceptance reserves ingredients and creates the invoice; preparation consumes stock; pickup/dispatch/delivery actions have role/state checks. Full payment gates collection/final delivery; COD can dispatch before payment is verified.
+- Connected new off-premise invoices to existing receipts, coupons/points, payment verification, refunds and sales reporting; fees/VAT are snapshotted and credited to the paisa. Existing table split and partial-payment policies remain available.
+- Added regression/integration tests and the Bengali v2.4 upgrade/recovery guide. Live SMTP, Twilio, browser push delivery and merchant sandbox/live money movement require operator credentials and acceptance testing.
+
 ## 2.3.0
 
 - Add SMTP-backed email verification and password recovery with hashed, expiring single-use tokens; add a private local-test outbox and explicit delivery status.

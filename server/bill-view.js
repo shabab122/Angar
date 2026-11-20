@@ -7,6 +7,10 @@ export function billView(bill) {
     id: bill._id.toString(),
     receiptNo: bill.receiptNo,
     tableNumber: bill.tableNumber,
+    kind: bill.kind || "table",
+    fulfillmentId: bill.fulfillmentId?.toString() || null,
+    fulfillmentCode: bill.fulfillmentCode || "",
+    deliveryFee: (bill.deliveryFeeMinor || 0) / 100,
     status: bill.status,
     revision: bill.revision || 0,
     items: bill.items.map(({ ownerKey, ownerCustomerId, ...item }) => item),
@@ -30,9 +34,12 @@ export function billView(bill) {
     refundedMinor: bill.refundedMinor || 0,
     netCollectedMinor: paid - (bill.refundedMinor || 0),
     refunds: bill.refunds || [],
-    balanceMinor: bill.totalMinor - paid,
+    balanceMinor: bill.status === "void" ? 0 : bill.totalMinor - paid,
     reservedMinor: reserved,
-    availableMinor: Math.max(0, bill.totalMinor - paid - reserved),
+    availableMinor:
+      bill.status === "void"
+        ? 0
+        : Math.max(0, bill.totalMinor - paid - reserved),
     payment: bill.payment
       ? { method: bill.payment.method, reference: bill.payment.reference }
       : null,

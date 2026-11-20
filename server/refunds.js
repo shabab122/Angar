@@ -5,6 +5,10 @@ import { hash } from "./security.js";
 import { transaction, allocateMinor } from "./money.js";
 import { gatewayClient } from "./gateway.js";
 import { billView } from "./bill-view.js";
+import {
+  completeSourceRefund,
+  registerRefundSources,
+} from "./refund-sources.js";
 
 const HELD = ["requested", "approved", "processing", "unknown", "refunded"];
 const reason = z.string().trim().min(3).max(200);
@@ -25,7 +29,9 @@ export const receiptPayments = (bill) =>
       : [];
 const view = (row) => ({
   id: row._id,
-  billId: row.billId.toString(),
+  billId: row.billId?.toString() || null,
+  source: row.source || "bill",
+  sourceId: row.sourceId?.toString() || null,
   receiptNo: row.receiptNo,
   tableNumber: row.tableNumber,
   paymentId: row.paymentId,
@@ -136,6 +142,8 @@ async function completeRefund(store, refundId, reference, by) {
         "REFUND_STATE",
         "This refund is not approved or pending confirmation.",
       );
+    if (["event", "overpayment"].includes(refund.source))
+      return completeSourceRefund(store, refund, reference, by, session);
     const bill = await store.bills.findOneAndUpdate(
       { _id: refund.billId, status: "paid" },
       { $inc: { revision: 1 } },
@@ -149,18 +157,19 @@ async function completeRefund(store, refundId, reference, by) {
         "Refunds cannot exceed the original collected amount.",
       );
     const at = new Date();
-    const previousParts = bill.refundComponents || [0, 0, 0];
+    const previousParts = bill.refundComponents || [0, 0, 0, 0];
     const originalParts = [
       bill.accountingFoodMinor ?? bill.netSubtotalMinor ?? bill.subtotalMinor,
       bill.accountingChargeMinor ?? bill.chargeMinor,
       bill.taxMinor || 0,
+      bill.accountingDeliveryFeeMinor ?? bill.deliveryFeeMinor ?? 0,
     ];
     const components = allocateMinor(
       refund.amountMinor,
-      originalParts.map((value, index) => value - previousParts[index]),
+      originalParts.map((value, index) => value - (previousParts[index] || 0)),
     );
     const cumulative = components.map(
-      (value, index) => value + previousParts[index],
+      (value, index) => value + (previousParts[index] || 0),
     );
     const creditNote = {
       number: "CN-" + refund._id.slice(2),
@@ -169,6 +178,7 @@ async function completeRefund(store, refundId, reference, by) {
       foodMinor: components[0],
       chargeMinor: components[1],
       taxMinor: components[2],
+      deliveryFeeMinor: components[3],
       invoice: bill.invoice || null,
       taxLabel: bill.taxLabel || "VAT",
       at,
@@ -295,6 +305,7 @@ export function registerRefunds(
   requireAdmin,
   requireId,
 ) {
+  registerRefundSources(api, store, billingRoles, requireId);
   api.get("/refunds", billingRoles, async (req, res) => {
     const query = String(req.query.receipt || "").trim();
     const filter = query ? { receiptNo: query } : {};

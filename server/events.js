@@ -103,6 +103,9 @@ export function eventView(event, staff = false) {
     note,
     history,
     ...(staff ? { phone: event.phone } : {}),
+    depositReceived: event.depositReceived || 0,
+    depositRefundedMinor: event.depositRefundedMinor || 0,
+    depositRefunds: event.depositRefunds || [],
   };
 }
 

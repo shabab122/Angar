@@ -1,6 +1,6 @@
 {
   "name": "angar-kitchen",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "description": "React restaurant website with QR ordering, table billing and a staff workspace.",
   "type": "module",
@@ -15,7 +15,11 @@
     "start": "node --env-file-if-exists=.env server/index.js",
     "dev": "node --env-file-if-exists=.env --watch server/index.js --dev",
     "test": "node --env-file-if-exists=.env --test test/*.test.js",
-    "mail:outbox": "node --env-file-if-exists=.env scripts/mail-outbox.js"
+    "mail:outbox": "node --env-file-if-exists=.env scripts/mail-outbox.js",
+    "backup:create": "node --env-file-if-exists=.env scripts/backup.js create",
+    "backup:verify": "node --env-file-if-exists=.env scripts/backup.js verify",
+    "backup:restore": "node --env-file-if-exists=.env scripts/backup.js restore",
+    "notifications:outbox": "node --env-file-if-exists=.env scripts/notification-outbox.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
@@ -30,6 +34,7 @@
     "react-dom": "19.3.1",
     "react-router-dom": "^7.9.0",
     "sharp": "0.35.5",
+    "web-push": "^4.0.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

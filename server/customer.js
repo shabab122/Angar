@@ -99,7 +99,12 @@ async function signIn(store, req, res, config, customer) {
   );
   const guestHash = getGuest(req, res, config);
   // Possession of the signed guest cookie proves ownership of unclaimed history.
-  for (const collection of [store.orders, store.reservations, store.waitlist])
+  for (const collection of [
+    store.orders,
+    store.reservations,
+    store.waitlist,
+    store.fulfillments,
+  ])
     await collection.updateMany(
       { guestHash, customerId: null },
       { $set: { customerId: customer._id } },

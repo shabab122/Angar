@@ -27,12 +27,21 @@ import {
 import { registerReports } from "./reports.js";
 import { registerCustomers, orderOwner } from "./customer.js";
 import { registerGuestRewards, registerStaffRewards } from "./rewards.js";
-import { registerGuestBills } from "./commerce.js";
+import { registerGuestBills, requireBillOwner } from "./commerce.js";
+import {
+  registerGuestFulfillment,
+  registerStaffFulfillment,
+} from "./fulfillment.js";
 import { registerSplitBills } from "./payments.js";
 import { registerRefunds } from "./refunds.js";
 import { registerStaffAccounts } from "./staff-accounts.js";
 import { registerInventory } from "./inventory.js";
 import { registerInvoices } from "./invoices.js";
+import { registerBackups } from "./backups.js";
+import {
+  registerNotifications,
+  registerStaffNotifications,
+} from "./notifications.js";
 import { registerGuestGateway, registerStaffGateway } from "./gateway.js";
 import {
   registerGuestReservations,
@@ -67,8 +76,10 @@ const paymentInput = z.strictObject({
 
 export function registerGuestFeatures(api, store, config, requireId) {
   registerCustomers(api, store, config, requireId);
+  registerNotifications(api, store, config);
   registerGuestRewards(api, store, config);
   registerGuestBills(api, store, config, requireId);
+  registerGuestFulfillment(api, store, config, requireId);
   registerGuestGateway(api, store, config, requireId);
   registerGuestReservations(api, store, config, requireId);
   api.get("/restaurant", async (req, res) =>
@@ -114,15 +125,7 @@ export function registerGuestFeatures(api, store, config, requireId) {
     });
     if (!bill)
       throw new HttpError(404, "NOT_FOUND", "This receipt could not be found.");
-    const ownOrder = await store.orders.findOne(
-      {
-        _id: { $in: bill.orderIds },
-        ...orderOwner(req, getGuest(req, res, config)),
-      },
-      { projection: { _id: 1 } },
-    );
-    if (!ownOrder)
-      throw new HttpError(404, "NOT_FOUND", "This receipt could not be found.");
+    await requireBillOwner(store, bill, req, res, config);
     res.json({ bill: billView(bill) });
   });
 
@@ -242,6 +245,15 @@ export function registerStaffFeatures(
     allowRoles("admin", "kitchen"),
   );
   registerInvoices(api, store, requireAdmin);
+  registerBackups(api, store, config, requireAdmin);
+  registerStaffNotifications(api, store, config, requireAdmin);
+  registerStaffFulfillment(
+    api,
+    store,
+    requireAdmin,
+    requireId,
+    allowRoles("admin", "cashier", "kitchen", "waiter"),
+  );
   registerStaffRewards(api, store, requireAdmin, billingRoles);
   registerSplitBills(api, store, billingRoles, requireId);
   registerRefunds(api, store, config, billingRoles, requireAdmin, requireId);
@@ -325,7 +337,7 @@ export function registerStaffFeatures(
         .toArray(),
       store.bills.find({ visitId: { $in: visits } }).toArray(),
       store.bills
-        .find({ status: "paid" })
+        .find({ status: "paid", fulfillmentId: { $exists: false } })
         .sort({ paidAt: -1 })
         .limit(20)
         .toArray(),

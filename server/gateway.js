@@ -485,6 +485,15 @@ export function registerGuestGateway(api, store, config, requireId) {
       if (bill.splits?.length && !input.splitId)
         throw new HttpError(400, "SPLIT_REQUIRED", "Choose a split to pay.");
       if (
+        bill.fulfillmentId &&
+        (input.splitId || input.amountMinor !== remainingMinor(bill))
+      )
+        throw new HttpError(
+          409,
+          "FULL_PAYMENT_REQUIRED",
+          "Pickup and delivery checkout requires the full remaining balance.",
+        );
+      if (
         input.amountMinor >
         remainingMinor(bill, input.splitId) - heldMinor(bill, input.splitId)
       )
