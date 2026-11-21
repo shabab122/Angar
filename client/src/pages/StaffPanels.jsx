@@ -2145,6 +2145,7 @@ function QuoteEditor({ event, onClose, onDone }) {
 function DepositModal({ event, onClose, onDone }) {
   const { money } = useApp();
   const [reference, setReference] = useState("");
+  const [method, setMethod] = useState("unclassified");
   const [verified, setVerified] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -2154,7 +2155,7 @@ function DepositModal({ event, onClose, onDone }) {
     try {
       await api("/staff/events/" + event.id + "/action", {
         method: "POST",
-        data: { action: "deposit", reference, verified },
+        data: { action: "deposit", reference, verified, method },
       });
       onDone();
       onClose();
@@ -2176,6 +2177,31 @@ function DepositModal({ event, onClose, onDone }) {
           <small>Verified deposit for {event.code}</small>
           <strong>{money(event.quote.deposit)}</strong>
         </div>
+        <label>
+          Deposit payment channel
+          <select
+            aria-label="Deposit payment channel"
+            value={method}
+            onChange={(event) => setMethod(event.target.value)}
+          >
+            {[
+              ["unclassified", "Unclassified / historical channel"],
+              ["cash", "Cash in restaurant drawer"],
+              ["bank", "Bank transfer"],
+              ["bkash", "bKash"],
+              ["nagad", "Nagad"],
+              ["card", "Card"],
+            ].map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="commerce-note">
+          Select cash when the deposit was physically received in the shared
+          drawer. Only confirmed cash is included in a cash shift.
+        </p>
         <label>
           Payment reference
           <input

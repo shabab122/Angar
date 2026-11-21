@@ -1,7 +1,12 @@
 import { runBackupJobs } from "./backups.js";
+import { runCloudBackupJobs } from "./backup-cloud.js";
 export function startOperationsWorker(store, config, extra = async () => {}) {
   let stopped = false;
-  const tasks = [() => runBackupJobs(store, config), extra].map((work) => ({
+  const tasks = [
+    () => runBackupJobs(store, config),
+    () => runCloudBackupJobs(store, config),
+    extra,
+  ].map((work) => ({
     work,
     running: false,
     pending: Promise.resolve(),

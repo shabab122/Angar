@@ -26,6 +26,17 @@ export async function connectDatabase(config) {
       fulfillments: db.collection("fulfillments"),
       bills: db.collection("bills"),
       audit: db.collection("auditLog"),
+      staffMfaChallenges: db.collection("staffMfaChallenges"),
+      staffMfaEnrollments: db.collection("staffMfaEnrollments"),
+      backupSyncJobs: db.collection("backupSyncJobs"),
+      cashRegisters: db.collection("cashRegisters"),
+      cashShifts: db.collection("cashShifts"),
+      cashMovements: db.collection("cashMovements"),
+      ingredientBatches: db.collection("ingredientBatches"),
+      suppliers: db.collection("suppliers"),
+      purchases: db.collection("purchases"),
+      purchaseReceipts: db.collection("purchaseReceipts"),
+      supplierPayments: db.collection("supplierPayments"),
       events: db.collection("events"),
       eventLocks: db.collection("eventLocks"),
       serviceRequests: db.collection("serviceRequests"),
@@ -45,6 +56,49 @@ export async function connectDatabase(config) {
     };
     const { dishes, tables, orders, reviews, staff, sessions } = collections;
     await Promise.all([
+      collections.audit.createIndex({ at: -1, _id: -1 }),
+      collections.audit.createIndex({ type: 1, at: -1 }),
+      collections.audit.createIndex({ by: 1, at: -1 }),
+      collections.staffMfaChallenges.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 },
+      ),
+      collections.staffMfaEnrollments.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 },
+      ),
+      collections.staffMfaChallenges.createIndex({ staffId: 1 }),
+      collections.backupSyncJobs.createIndex({ status: 1, nextAt: 1 }),
+      collections.backupSyncJobs.createIndex({
+        backupId: 1,
+        destinationHash: 1,
+      }),
+      collections.cashShifts.createIndex({ requestKey: 1 }, { unique: true }),
+      collections.cashShifts.createIndex({ openedAt: -1 }),
+      collections.cashMovements.createIndex({ shiftId: 1, at: 1 }),
+      collections.ingredientBatches.createIndex(
+        { ingredientId: 1, code: 1 },
+        { unique: true },
+      ),
+      collections.ingredientBatches.createIndex({
+        ingredientId: 1,
+        expiresOn: 1,
+        createdAt: 1,
+      }),
+      collections.suppliers.createIndex({ nameKey: 1 }, { unique: true }),
+      collections.purchaseReceipts.createIndex({ purchaseId: 1, at: -1 }),
+      collections.supplierPayments.createIndex({ purchaseId: 1, at: -1 }),
+      collections.purchases.createIndex({ requestKey: 1 }, { unique: true }),
+      collections.purchases.createIndex({ supplierId: 1, createdAt: -1 }),
+      collections.purchases.createIndex({ code: 1 }, { unique: true }),
+      collections.purchaseReceipts.createIndex(
+        { requestKey: 1 },
+        { unique: true },
+      ),
+      collections.supplierPayments.createIndex(
+        { requestKey: 1 },
+        { unique: true },
+      ),
       dishes.createIndex({ position: 1 }),
       tables.createIndexes([
         { key: { number: 1 }, unique: true },
@@ -181,6 +235,11 @@ export async function connectDatabase(config) {
       ),
       collections.waitlist.createIndex({ active: 1, createdAt: 1 }),
     ]);
+    await collections.cashRegisters.updateOne(
+      { _id: "main" },
+      { $setOnInsert: { revision: 0, activeShiftId: null } },
+      { upsert: true },
+    );
     return { client, db, ...collections };
   } catch (error) {
     await client.close();

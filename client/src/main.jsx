@@ -23,6 +23,7 @@ import "./styles/operations.css";
 import "./styles/commerce.css";
 import "./styles/management.css";
 import "./styles/v24.css";
+import "./styles/v25.css";
 
 function App() {
   return (

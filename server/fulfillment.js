@@ -12,6 +12,7 @@ import {
   nextReceiptNumber,
 } from "./invoices.js";
 import { reserveOrderInventory, changeOrderInventory } from "./inventory.js";
+import { assertReservedBatches } from "./ingredient-batches.js";
 import { promotionTotals } from "./rewards.js";
 import { billView } from "./bill-view.js";
 import { transaction, heldMinor, paidMinor } from "./money.js";
@@ -804,12 +805,14 @@ export function registerStaffFulfillment(
           changes.billId = bill._id;
           changes.paymentStatus = "unpaid";
         }
-        if (input.action === "prepare" && row.inventory)
+        if (input.action === "prepare" && row.inventory) {
+          await assertReservedBatches(store, row, session);
           changes.inventory = {
             ...row.inventory,
             state: "consumed",
             consumedAt: now,
           };
+        }
         changes.status = next;
       }
       const history = {

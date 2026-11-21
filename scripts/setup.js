@@ -24,6 +24,7 @@ for (const line of defaults) {
   const secret =
     key === "COOKIE_SECRET" ||
     key === "BACKUP_ENCRYPTION_KEY" ||
+    key === "MFA_ENCRYPTION_KEY" ||
     /^STAFF_.*_PASSWORD$/.test(key);
   if (!match) content += (content.endsWith("\n") ? "" : "\n") + line + "\n";
   if (secret && (!match || !match[1].trim())) {
@@ -32,8 +33,16 @@ for (const line of defaults) {
       key +
         "=" +
         randomBytes(
-          key === "COOKIE_SECRET" || key === "BACKUP_ENCRYPTION_KEY" ? 32 : 18,
-        ).toString(key === "BACKUP_ENCRYPTION_KEY" ? "hex" : "base64url"),
+          key === "COOKIE_SECRET" ||
+            key === "BACKUP_ENCRYPTION_KEY" ||
+            key === "MFA_ENCRYPTION_KEY"
+            ? 32
+            : 18,
+        ).toString(
+          key === "BACKUP_ENCRYPTION_KEY" || key === "MFA_ENCRYPTION_KEY"
+            ? "hex"
+            : "base64url",
+        ),
     );
   }
 }

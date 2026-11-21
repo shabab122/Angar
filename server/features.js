@@ -38,6 +38,12 @@ import { registerStaffAccounts } from "./staff-accounts.js";
 import { registerInventory } from "./inventory.js";
 import { registerInvoices } from "./invoices.js";
 import { registerBackups } from "./backups.js";
+import { registerAuditDashboard } from "./audit-dashboard.js";
+import { registerCashDrawer } from "./cash-drawer.js";
+import { registerIngredientBatches } from "./ingredient-batches.js";
+import { registerPurchasing } from "./purchasing.js";
+import { registerStaffMfa } from "./staff-mfa.js";
+import { registerCloudBackups } from "./backup-cloud.js";
 import {
   registerNotifications,
   registerStaffNotifications,
@@ -237,6 +243,7 @@ export function registerStaffFeatures(
   const billingRoles = allowRoles("admin", "cashier");
   const floorRoles = allowRoles("admin", "waiter");
   registerStaffAccounts(api, store, config, requireAdmin, requireId);
+  registerStaffMfa(api, store, config, requireAdmin, requireId);
   registerInventory(
     api,
     store,
@@ -246,6 +253,17 @@ export function registerStaffFeatures(
   );
   registerInvoices(api, store, requireAdmin);
   registerBackups(api, store, config, requireAdmin);
+  registerCloudBackups(api, store, config, requireAdmin);
+  registerAuditDashboard(api, store, requireAdmin);
+  registerCashDrawer(api, store, billingRoles, requireAdmin, requireId);
+  registerIngredientBatches(
+    api,
+    store,
+    requireAdmin,
+    allowRoles("admin", "kitchen"),
+    requireId,
+  );
+  registerPurchasing(api, store, billingRoles, requireAdmin, requireId);
   registerStaffNotifications(api, store, config, requireAdmin);
   registerStaffFulfillment(
     api,

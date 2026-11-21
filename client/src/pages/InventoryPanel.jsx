@@ -4,6 +4,11 @@ import { useApp } from "../lib/AppContext";
 import { api, dhakaTime } from "../lib/api";
 import { useResource } from "../lib/useResource";
 import {
+  BatchDetailsFields,
+  batchPayload,
+  emptyBatch,
+} from "./InventoryBatchesPanel";
+import {
   Button,
   EmptyState,
   ErrorMessage,
@@ -20,6 +25,10 @@ export function InventoryPanel({ user }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const admin = user.role === "admin";
+  const batchResource = useResource(
+    "/staff/inventory/batches?ingredient=" + (action?.row?.id || ""),
+    { enabled: action?.type === "stock" && Boolean(action.row.batchTracked) },
+  );
   function open(type, row) {
     setAction({ type, row, key: crypto.randomUUID().replaceAll("-", "") });
     setError("");
@@ -41,6 +50,8 @@ export function InventoryPanel({ user }) {
             quantity: "",
             reason: "",
             reference: "",
+            batch: emptyBatch(),
+            batchId: "",
           },
     );
   }
@@ -81,6 +92,13 @@ export function InventoryPanel({ user }) {
                   reason: values.reason,
                   reference: values.reference,
                   requestKey: action.key,
+                  ...(row.batchTracked
+                    ? values.kind === "receive" ||
+                      (values.kind === "correction" &&
+                        Number(values.quantity) > 0)
+                      ? { batch: batchPayload(values.batch) }
+                      : { batchId: values.batchId }
+                    : {}),
                 };
       await api(endpoint, {
         method: type === "metadata" ? "PATCH" : "POST",
@@ -442,6 +460,43 @@ export function InventoryPanel({ user }) {
                     }
                   />
                 </label>
+                {action.row.batchTracked &&
+                  (values.kind === "receive" ||
+                  (values.kind === "correction" &&
+                    Number(values.quantity) >= 0) ? (
+                    <BatchDetailsFields
+                      value={values.batch}
+                      onChange={(batch) => setValues({ ...values, batch })}
+                    />
+                  ) : (
+                    <label>
+                      Batch being removed
+                      <select
+                        aria-label="Batch being removed"
+                        required
+                        value={values.batchId}
+                        onChange={(event) =>
+                          setValues({ ...values, batchId: event.target.value })
+                        }
+                      >
+                        <option value="">Choose a batch</option>
+                        {batchResource.data?.batches
+                          .filter((batch) => batch.remaining > 0)
+                          .map((batch) => (
+                            <option key={batch.id} value={batch.id}>
+                              {batch.code} · {batch.remaining} {batch.unit}
+                              {batch.expired ? " · expired" : ""}
+                              {batch.blocked ? " · quarantined" : ""}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  ))}
+                {action.row.batchTracked && batchResource.error && (
+                  <ErrorMessage onRetry={batchResource.reload}>
+                    {batchResource.error.message}
+                  </ErrorMessage>
+                )}
               </>
             )}
             {action.type === "recipe" && (

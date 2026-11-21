@@ -1,6 +1,6 @@
 {
   "name": "angar-kitchen",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "private": true,
   "description": "React restaurant website with QR ordering, table billing and a staff workspace.",
   "type": "module",
@@ -19,9 +19,13 @@
     "backup:create": "node --env-file-if-exists=.env scripts/backup.js create",
     "backup:verify": "node --env-file-if-exists=.env scripts/backup.js verify",
     "backup:restore": "node --env-file-if-exists=.env scripts/backup.js restore",
-    "notifications:outbox": "node --env-file-if-exists=.env scripts/notification-outbox.js"
+    "notifications:outbox": "node --env-file-if-exists=.env scripts/notification-outbox.js",
+    "backup:remote-list": "node --env-file-if-exists=.env scripts/backup-cloud.js list",
+    "backup:fetch": "node --env-file-if-exists=.env scripts/backup-cloud.js fetch",
+    "mfa:recover": "node --env-file-if-exists=.env scripts/mfa-recover.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1173.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
@@ -29,6 +33,7 @@
     "lucide-react": "1.72.0",
     "mongodb": "^7.0.0",
     "nodemailer": "^10.6.0",
+    "otpauth": "^9.6.0",
     "qrcode": "^1.5.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",

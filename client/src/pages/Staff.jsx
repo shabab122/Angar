@@ -12,14 +12,17 @@ import {
   LogOut,
   MenuSquare,
   MessageSquareText,
+  PackageCheck,
   RefreshCw,
   Settings2,
   ShoppingBag,
   ShieldCheck,
   Table2,
+  Truck,
   UtensilsCrossed,
   Volume2,
   VolumeX,
+  Wallet,
 } from "lucide-react";
 import { useApp } from "../lib/AppContext";
 import { api, dhakaTime } from "../lib/api";
@@ -34,6 +37,10 @@ import { InvoiceSettings } from "./InvoiceSettings";
 import { BackupsPanel } from "./BackupsPanel";
 import { NotificationLogs } from "./Notifications";
 import { FulfillmentDesk } from "./Takeaway";
+import { AuditDashboard, CashDrawerPanel } from "./AuditCash";
+import { MfaPanel } from "./MfaPanel";
+import { InventoryBatchesPanel } from "./InventoryBatchesPanel";
+import { PurchasingPanel } from "./PurchasingPanel";
 import {
   BillingPanel,
   EventsPanel,
@@ -58,6 +65,8 @@ const navigation = [
   ],
   ["tables", Table2, "Table visits", ["admin", "waiter"]],
   ["billing", CircleDollarSign, "Counter & bills", ["admin", "cashier"]],
+  ["cash", Wallet, "Cash drawer & shifts", ["admin", "cashier"]],
+  ["audit", ShieldCheck, "Staff activity", ["admin"]],
   ["events", CalendarDays, "Private events", ["admin"]],
   ["reviews", MessageSquareText, "Guest feedback", ["admin"]],
   ["requests", BellRing, "Floor requests", ["admin", "waiter"]],
@@ -71,6 +80,8 @@ const navigation = [
   ["refunds", CircleDollarSign, "Refunds & credit notes", ["admin", "cashier"]],
   ["team", ShieldCheck, "Staff accounts", ["admin"]],
   ["inventory", MenuSquare, "Ingredients & recipes", ["admin", "kitchen"]],
+  ["batches", PackageCheck, "Batches & expiry", ["admin", "kitchen"]],
+  ["purchasing", Truck, "Suppliers & purchases", ["admin", "cashier"]],
   ["invoices", Settings2, "Tax & invoices", ["admin"]],
   ["backups", ShieldCheck, "Backups & recovery", ["admin"]],
   ["notifications", BellRing, "Notification delivery", ["admin"]],
@@ -110,8 +121,20 @@ export function Staff() {
     );
   if (user?.mustChangePassword)
     return <StaffPassword required onSignedOut={() => setUser(null)} />;
+  if (user?.mfaSetupRequired)
+    return (
+      <MfaPanel
+        required
+        onIdentityUpdated={setUser}
+        onSignedOut={() => setUser(null)}
+      />
+    );
   return user ? (
-    <Dashboard user={user} onSignedOut={() => setUser(null)} />
+    <Dashboard
+      user={user}
+      onSignedOut={() => setUser(null)}
+      onIdentityUpdated={setUser}
+    />
   ) : (
     <Login onSignedIn={setUser} initialError={bootError} />
   );
@@ -120,14 +143,26 @@ function Login({ onSignedIn, initialError }) {
   const [values, setValues] = useState({ username: "", password: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
+  const [challenge, setChallenge] = useState(false),
+    [code, setCode] = useState("");
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
     setError("");
     try {
-      const user = await api("/staff/login", { method: "POST", data: values });
-      setValues({ username: "", password: "" });
-      onSignedIn(user);
+      const user = await api(
+        challenge ? "/staff/login/verify" : "/staff/login",
+        { method: "POST", data: challenge ? { code } : values },
+      );
+      setValues({ ...values, password: "" });
+      if (user.needsMfa) {
+        setChallenge(true);
+        setCode("");
+      } else {
+        setValues({ username: "", password: "" });
+        setCode("");
+        onSignedIn(user);
+      }
     } catch (failure) {
       setError(failure.message);
     } finally {
@@ -180,43 +215,87 @@ function Login({ onSignedIn, initialError }) {
             <br />
             <em>service started.</em>
           </h2>
-          <p>Sign in with the account assigned to your role.</p>
-          <label>
-            Username
-            <input
-              name="username"
-              autoComplete="username"
-              required
-              maxLength={32}
-              value={values.username}
-              onChange={(e) =>
-                setValues({ ...values, username: e.target.value })
-              }
-            />
-          </label>
-          <label>
-            Password
-            <input
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              maxLength={128}
-              value={values.password}
-              onChange={(e) =>
-                setValues({ ...values, password: e.target.value })
-              }
-            />
-          </label>
+          <p>
+            {challenge
+              ? "Enter a fresh authenticator code or one unused recovery code."
+              : "Sign in with the account assigned to your role."}
+          </p>
+          {!challenge && (
+            <>
+              <label>
+                Username
+                <input
+                  name="username"
+                  autoComplete="username"
+                  required
+                  maxLength={32}
+                  value={values.username}
+                  onChange={(e) =>
+                    setValues({ ...values, username: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Password
+                <input
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  maxLength={128}
+                  value={values.password}
+                  onChange={(e) =>
+                    setValues({ ...values, password: e.target.value })
+                  }
+                />
+              </label>
+            </>
+          )}
+          {challenge && (
+            <label>
+              Authenticator or recovery code
+              <input
+                aria-label="Staff sign-in verification code"
+                autoComplete="one-time-code"
+                required
+                minLength={6}
+                maxLength={80}
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+              />
+            </label>
+          )}
           {error && <ErrorMessage>{error}</ErrorMessage>}
           <button
             className="button button-primary button-wide"
             type="submit"
             disabled={busy}
           >
-            {busy ? "Signing in…" : "Open my workspace"}
+            {busy
+              ? "Signing in…"
+              : challenge
+                ? "Verify & open workspace"
+                : "Open my workspace"}
             <ArrowRight size={17} />
           </button>
+          {challenge && (
+            <Button
+              secondary
+              disabled={busy}
+              onClick={async () => {
+                try {
+                  await api("/staff/logout", { method: "POST", data: {} });
+                  setChallenge(false);
+                  setCode("");
+                  setError("");
+                } catch (failure) {
+                  setError(failure.message);
+                }
+              }}
+            >
+              Restart staff sign-in
+            </Button>
+          )}
           <small className="staff-login-help">
             Admin · Kitchen · Waiter · Cashier
           </small>
@@ -245,7 +324,7 @@ function ring(context) {
     /* A muted or suspended device must not interrupt the queue. */
   }
 }
-export function Dashboard({ user, onSignedOut }) {
+export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
   const { notify } = useApp();
   const [tab, setTab] = useState(
     user.role === "admin"
@@ -259,8 +338,16 @@ export function Dashboard({ user, onSignedOut }) {
   const audio = useRef(null);
   const seen = useRef(null);
   const seenRequests = useRef(null);
-  const queue = useResource("/staff/orders", { interval: 3000 });
-  const overview = useResource("/staff/overview", { interval: 10000 });
+  // Factor changes rotate this browser's session. Suspend background requests
+  // here so an in-flight response for the old session cannot discard the codes.
+  const queue = useResource("/staff/orders", {
+    interval: 3000,
+    enabled: tab !== "access",
+  });
+  const overview = useResource("/staff/overview", {
+    interval: 10000,
+    enabled: tab !== "access",
+  });
   const floorQueue = useResource("/staff/service-requests", {
     interval: 3000,
     enabled: ["admin", "waiter"].includes(user.role),
@@ -481,6 +568,8 @@ export function Dashboard({ user, onSignedOut }) {
           {tab === "fulfillment" && <FulfillmentDesk role={user.role} />}
           {tab === "tables" && <TablesPanel {...common} />}
           {tab === "billing" && <BillingPanel {...common} />}
+          {tab === "cash" && <CashDrawerPanel user={user} />}
+          {tab === "audit" && <AuditDashboard />}
           {tab === "events" && <EventsPanel {...common} />}
           {tab === "reviews" && <ReviewsPanel {...common} />}
           {tab === "requests" && (
@@ -494,12 +583,19 @@ export function Dashboard({ user, onSignedOut }) {
           {tab === "coupons" && <CouponsPanel {...common} />}
           {tab === "gateway" && <GatewayPanel {...common} />}
           {tab === "refunds" && <RefundsPanel {...common} />}
-          {tab === "team" && <StaffAccounts />}
+          {tab === "team" && <StaffAccounts user={user} />}
           {tab === "inventory" && <InventoryPanel {...common} />}
+          {tab === "batches" && <InventoryBatchesPanel user={user} />}
+          {tab === "purchasing" && <PurchasingPanel user={user} />}
           {tab === "invoices" && <InvoiceSettings />}
           {tab === "backups" && <BackupsPanel />}
           {tab === "notifications" && <NotificationLogs />}
-          {tab === "access" && <StaffPassword onSignedOut={onSignedOut} />}
+          {tab === "access" && (
+            <>
+              <StaffPassword onSignedOut={onSignedOut} />
+              <MfaPanel onIdentityUpdated={onIdentityUpdated} />
+            </>
+          )}
           {tab === "settings" && <SettingsPanel {...common} />}
         </main>
       </div>

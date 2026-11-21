@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { recordCash } from "./cash-drawer.js";
 import { z } from "zod";
 import { body, HttpError } from "./http.js";
 import { hash } from "./security.js";
@@ -183,6 +184,19 @@ async function completeRefund(store, refundId, reference, by) {
       taxLabel: bill.taxLabel || "VAT",
       at,
     };
+    if (refund.method === "cash")
+      await recordCash(
+        store,
+        {
+          key: "refund:" + refund._id,
+          deltaMinor: -refund.amountMinor,
+          kind: "bill_refund",
+          by,
+          sourceId: refund._id,
+          reference,
+        },
+        session,
+      );
     const loyaltyRefunds = await loyaltyRefund(
       store,
       bill,

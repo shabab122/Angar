@@ -4,6 +4,7 @@ import { useApp } from "../lib/AppContext";
 import { api, dhakaTime } from "../lib/api";
 import { useResource } from "../lib/useResource";
 import { Button, ErrorMessage, Loading, Logo, Modal } from "../components/UI";
+import { MfaResetDialog } from "./MfaPanel";
 
 export function StaffPassword({ required = false, onSignedOut }) {
   const { notify } = useApp();
@@ -129,9 +130,10 @@ export function StaffPassword({ required = false, onSignedOut }) {
   );
 }
 
-export function StaffAccounts() {
+export function StaffAccounts({ user: currentUser }) {
   const { notify } = useApp();
   const resource = useResource("/staff/team", { interval: 15000 });
+  const [mfaReset, setMfaReset] = useState(null);
   const [action, setAction] = useState(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -253,6 +255,9 @@ export function StaffAccounts() {
             <p className="commerce-note">
               {user.mustChangePassword &&
                 "Personal password required at next sign in. "}
+              {user.mfaEnabled
+                ? "Authenticator enabled. "
+                : "Authenticator not enrolled. "}
               {user.lastLoginAt
                 ? "Last sign in: " + dhakaTime(user.lastLoginAt)
                 : "No recorded sign in yet."}
@@ -272,10 +277,31 @@ export function StaffAccounts() {
               >
                 Reset temporary password
               </Button>
+              {user.mfaEnabled && user.username !== currentUser?.username && (
+                <Button
+                  secondary
+                  className="button-small"
+                  onClick={() => setMfaReset(user)}
+                >
+                  Recover authenticator access
+                </Button>
+              )}
             </div>
           </article>
         ))}
       </div>
+      {mfaReset && (
+        <MfaResetDialog
+          target={mfaReset}
+          onClose={() => setMfaReset(null)}
+          onDone={() => {
+            void resource.reload();
+            notify(
+              "Staff authenticator access recovered. A password change is required.",
+            );
+          }}
+        />
+      )}
       {action && (
         <Modal
           open
