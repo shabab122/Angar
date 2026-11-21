@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.5.0
+
+Base: `Angar_Kitchen_React_v2.4.zip`. Existing restaurant design/assets, QR ordering, guest accounts, split/partial bills, refunds, reservations, notifications, pickup/delivery and the React–Express–MongoDB stack are retained.
+
+- Added administrator audit search/filter/cursor pagination and formula-safe CSV using an explicit field allowlist over existing staff records.
+- Added encrypted TOTP enrollment, password-plus-factor staff login, hashed single-use recovery codes, account-wide attempt limits, session revocation, optional administrator enrollment policy and audited manager/local-operator recovery.
+- Added opt-in S3-compatible encrypted-backup synchronization with conditional creation, downloaded-byte SHA-256 verification, destination-bound retries, unsynced-source retention and remote listing/authenticated fetch CLI. Existing cloud objects are never overwritten; no remote deletion occurs.
+- Added a shared cash drawer with opening float, transactional cash receipts/refunds/event deposits/supplier expenses, manual movements, stale-count protection, immutable closing counts/variance, administrator review and statements/CSV. Receipts without an open shift remain separately recorded.
+- Added optional ingredient batch tracking with balanced opening lots, expiry/quarantine alerts, earliest-expiry reservations, preparation rechecks, original-lot cancellation returns and quarantined legacy returns. Existing aggregate inventory remains compatible.
+- Added supplier contacts/archive, purchase drafts/confirmation/cancellation, partial counted lot-aware deliveries, exact cumulative pricing, received-goods payables and idempotent verified supplier payments connected to cash reconciliation.
+- Added staff screens, responsive styles, regression/integration coverage and the Bengali v2.5 upgrade/recovery guide. Cloud tests use a controlled S3 transport; deployment-specific provider acceptance needs the operator's bucket/credentials.
+
 ## 2.4.0
 
 Base: `Angar_Kitchen_React_v2.3.zip`. Existing dining-table ordering, split/partial payments, staff roles, accounts, inventory, invoices, reviews, reservations, event quotes, original assets and technology stack are retained.

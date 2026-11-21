@@ -4,6 +4,7 @@ import { useApp } from "../lib/AppContext";
 import { api, dhakaTime } from "../lib/api";
 import { useResource } from "../lib/useResource";
 import { Button, ErrorMessage, Loading } from "../components/UI";
+import { CloudBackupPanel } from "./CloudBackupPanel";
 
 export function BackupsPanel() {
   const { notify } = useApp(),
@@ -199,6 +200,7 @@ export function BackupsPanel() {
         Sessions, recovery links and pending message jobs are cleared in
         restored copies.
       </p>
+      <CloudBackupPanel />
     </section>
   );
 }

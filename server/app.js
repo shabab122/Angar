@@ -48,7 +48,12 @@ import {
 import { moveOrder } from "./order-changes.js";
 import { customerMiddleware, orderOwner } from "./customer.js";
 import { registerGatewayCallbacks } from "./gateway.js";
-import { staffIdentity } from "./staff-accounts.js";
+import {
+  beginStaffLogin,
+  registerMfaLogin,
+  staffPayload,
+  clearPendingMfa,
+} from "./staff-mfa.js";
 import { openWalkInTable } from "./reservations.js";
 
 const publicDir = fileURLToPath(new URL("../dist/", import.meta.url));
@@ -350,6 +355,16 @@ export function createApp(store, config, frontendMiddleware) {
         "Sign in to the staff workspace.",
       );
     req.staff = user;
+    if (
+      staffPayload(user, config).mfaSetupRequired &&
+      !["/me", "/password"].includes(req.path) &&
+      !/^\/mfa(?:\/|$)/.test(req.path)
+    )
+      throw new HttpError(
+        403,
+        "MFA_REQUIRED",
+        "Set up your administrator authenticator before using this workspace.",
+      );
     if (user.mustChangePassword && !["/me", "/password"].includes(req.path))
       throw new HttpError(
         403,
@@ -370,45 +385,33 @@ export function createApp(store, config, frontendMiddleware) {
   }
 
   const staffApi = express.Router();
+  registerMfaLogin(staffApi, store, config);
   staffApi.post("/login", limiter(20, 15 * 60 * 1000), async (req, res) => {
     const { username, password } = body(loginInput, req.body);
     const user = await staff.findOne({ username, active: true });
     if (!(await passwordMatches(password, user?.passwordHash))) {
+      await store.audit.insertOne({
+        type: "staff.login_failed",
+        by: username,
+        at: new Date(),
+      });
       throw new HttpError(
         401,
         "LOGIN_FAILED",
         "The username or password is incorrect.",
       );
     }
-    const previous = req.cookies[STAFF_COOKIE];
-    if (sessionToken(previous))
-      await sessions.deleteOne({ _id: hash(previous) });
-    const token = randomToken();
-    await sessions.insertOne({
-      _id: hash(token),
-      staffId: user._id,
-      authVersion: user.authVersion || 0,
-      expiresAt: new Date(Date.now() + SESSION_LIFETIME),
-    });
-    res.cookie(
-      STAFF_COOKIE,
-      token,
-      cookieOptions(config, { maxAge: SESSION_LIFETIME }),
-    );
-    await staff.updateOne(
-      { _id: user._id },
-      { $set: { lastLoginAt: new Date() } },
-    );
-    res.json(staffIdentity(user));
+    await beginStaffLogin(store, config, req, res, user);
   });
   staffApi.post("/logout", async (req, res) => {
     const token = req.cookies[STAFF_COOKIE];
     if (sessionToken(token)) await sessions.deleteOne({ _id: hash(token) });
     res.clearCookie(STAFF_COOKIE, cookieOptions(config));
+    await clearPendingMfa(store, req, res, config);
     res.status(204).end();
   });
   staffApi.use(requireStaff);
-  staffApi.get("/me", (req, res) => res.json(staffIdentity(req.staff)));
+  staffApi.get("/me", (req, res) => res.json(staffPayload(req.staff, config)));
   staffApi.get("/orders", async (req, res) => {
     const role = req.staff.role;
     const [active, recent] = await Promise.all([

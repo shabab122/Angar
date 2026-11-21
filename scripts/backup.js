@@ -2,6 +2,7 @@ import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { loadConfig } from "../server/config.js";
+import { queueCloudBackup } from "../server/backup-cloud.js";
 import { connectDatabase } from "../server/db.js";
 import {
   createBackup,
@@ -21,6 +22,10 @@ try {
     const id = "BK-" + randomBytes(16).toString("hex");
     const summary = await createBackup(store, config, id),
       restored = await verifyBackup(store, config, id);
+    if (
+      (await store.settings.findOne({ _id: "backup-config" }))?.offsiteEnabled
+    )
+      await queueCloudBackup(store, config, id, "cli");
     console.log(
       JSON.stringify(
         { backupId: id, ...summary, verified: restored.verified },

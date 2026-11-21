@@ -82,6 +82,21 @@ export function loadConfig(env = process.env) {
       "SSLCOMMERZ_PUBLIC_ORIGIN must be a public HTTPS origin without a path.",
     );
   return {
+    staffMfa: {
+      key: env.MFA_ENCRYPTION_KEY || "",
+      requireAdmin: env.STAFF_REQUIRE_2FA_ADMIN === "true",
+    },
+    backupS3: {
+      bucket: env.BACKUP_S3_BUCKET || "",
+      region: env.BACKUP_S3_REGION || "us-east-1",
+      endpoint: env.BACKUP_S3_ENDPOINT || "",
+      prefix: env.BACKUP_S3_PREFIX || "angar-backups/",
+      accessKeyId: env.BACKUP_S3_ACCESS_KEY_ID || "",
+      secretAccessKey: env.BACKUP_S3_SECRET_ACCESS_KEY || "",
+      sessionToken: env.BACKUP_S3_SESSION_TOKEN || "",
+      forcePathStyle: env.BACKUP_S3_FORCE_PATH_STYLE === "true",
+      useDefaultCredentials: env.BACKUP_S3_USE_DEFAULT_CREDENTIALS === "true",
+    },
     sms: {
       mode: smsMode,
       accountSid: env.TWILIO_ACCOUNT_SID || "",

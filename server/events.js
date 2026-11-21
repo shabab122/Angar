@@ -1,4 +1,5 @@
 import { ObjectId } from "mongodb";
+import { recordCash } from "./cash-drawer.js";
 import { z } from "zod";
 import { body, HttpError } from "./http.js";
 import { getGuest, randomToken } from "./security.js";
@@ -381,6 +382,9 @@ export function registerEventStaff(api, store, requireAdmin, requireId) {
         reason: z.string().trim().max(200).default(""),
         reference: z.string().trim().max(100).default(""),
         verified: z.boolean().optional(),
+        method: z
+          .enum(["cash", "bkash", "nagad", "card", "bank", "unclassified"])
+          .default("unclassified"),
       }),
       req.body,
     );
@@ -439,6 +443,19 @@ export function registerEventStaff(api, store, requireAdmin, requireId) {
               "This hold expired. Review the booking before accepting funds.",
             );
           await assertSlot(store, event, session);
+          if (input.method === "cash" && event.quote.deposit > 0)
+            await recordCash(
+              store,
+              {
+                key: "event:" + id + ":deposit",
+                deltaMinor: Math.round(event.quote.deposit * 100),
+                kind: "event_deposit",
+                by: req.staff.username,
+                sourceId: id,
+                reference: input.reference,
+              },
+              session,
+            );
         }
         if (input.action === "complete" && event.endsAt > new Date())
           throw new HttpError(
@@ -455,6 +472,7 @@ export function registerEventStaff(api, store, requireAdmin, requireId) {
                 ? {
                     depositReceived: event.quote.deposit,
                     depositReference: input.reference,
+                    depositMethod: input.method,
                   }
                 : {}),
             },

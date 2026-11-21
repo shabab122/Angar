@@ -4,6 +4,7 @@ import { ACTIONS, lockAvailableDishes, orderView } from "./orders.js";
 import { getGuest, hash } from "./security.js";
 import { orderOwner } from "./customer.js";
 import { reserveOrderInventory, changeOrderInventory } from "./inventory.js";
+import { assertReservedBatches } from "./ingredient-batches.js";
 
 const reason = z.string().trim().min(3).max(160);
 const base = { expectedRevision: z.number().int().min(0), reason };
@@ -94,12 +95,14 @@ export async function moveOrder(store, id, action, reasonText, user) {
         session,
         user.username,
       );
-    if (action === "start" && order.inventory)
+    if (action === "start" && order.inventory) {
+      await assertReservedBatches(store, order, session);
       set.inventory = {
         ...order.inventory,
         state: "consumed",
         consumedAt: now,
       };
+    }
     if (action === "reject" && order.inventory?.state === "reserved")
       set.inventory = await changeOrderInventory(
         store,

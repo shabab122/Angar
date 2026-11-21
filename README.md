@@ -1,11 +1,26 @@
-# Angar Kitchen · React v2.4
+# Angar Kitchen · React v2.5
 
 বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
 
 **প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
 
 
-## v2.4 — এই release-এর চারটি নতুন ফিচার
+## v2.5 — এই release-এর ছয়টি নতুন ফিচার
+
+**Base: Angar_Kitchen_React_v2.4.zip।** আগের design/assets, React–Express–MongoDB stack ও working features রেখে এই সংযোজনগুলো হয়েছে। Existing data রেখে upgrade এবং নতুন configuration-এর পূর্ণ নির্দেশনা: [UPGRADE_v2.5_BN.md](UPGRADE_v2.5_BN.md)।
+
+| ফিচার | কোথায় / কী যোগ হয়েছে |
+|---|---|
+| Audit dashboard | Admin → Staff activity: date/action/actor/search filters, pagination ও protected CSV। |
+| Staff 2FA | My access: authenticator setup, password + code login, single-use recovery codes, optional required-admin policy ও audited recovery। |
+| Off-site backups | Backups & recovery: private S3-compatible bucket-এ existing encrypted bundle copy, downloaded checksum verification, retries ও recovery CLI। নিজের bucket/credentials দরকার; default off। |
+| Cash drawer / shifts | Admin/cashier → Cash drawer & shifts: opening count, cash receipts/refunds/deposits/supplier expenses, closing difference, admin review ও CSV। |
+| Ingredient batches / expiry | Admin/kitchen → Batches & expiry: explicit opening lots, earliest-expiry allocation, alerts/quarantine, tracked returns ও preparation safety check। Existing ingredients default untracked। |
+| Suppliers / purchases | Admin/cashier → Suppliers & purchases: supplier contacts, purchase drafts/approval, counted partial deliveries, lot-aware stock, received-goods payables ও verified payments। |
+
+Existing installation-এ পুরোনো `.env`, MongoDB, photos/backups এবং encryption keys রাখুন; নতুন folder-এ `npm ci`, `npm run setup`, `npm run build`, `npm start`। আবার demo seed বা database reset লাগবে না। Setup missing MFA key যোগ করে; existing values রাখে। Real cloud delivery এবং payment/SMS/email provider acceptance নিজের credentials দিয়ে করতে হবে।
+
+## v2.4-এর সংরক্ষিত চারটি ফিচার
 
 **Base: Angar_Kitchen_React_v2.3.zip।** React–Express–MongoDB stack, পুরোনো design/assets এবং QR/table workflows রেখে নিচের সংযোজন করা হয়েছে।
 

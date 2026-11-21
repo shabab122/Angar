@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { recordCash } from "./cash-drawer.js";
 import { z } from "zod";
 import { body, HttpError } from "./http.js";
 import { hash } from "./security.js";
@@ -87,6 +88,19 @@ export async function completeSourceRefund(
     },
     { session },
   );
+  if (refund.method === "cash")
+    await recordCash(
+      store,
+      {
+        key: "refund:" + refund._id,
+        deltaMinor: -refund.amountMinor,
+        kind: isEvent ? "event_deposit_refund" : "excess_payment_refund",
+        by,
+        sourceId: refund._id,
+        reference,
+      },
+      session,
+    );
   const result = await store.refunds.findOneAndUpdate(
     { _id: refund._id },
     {
@@ -351,15 +365,13 @@ export function registerRefundSources(api, store, billingRoles, requireId) {
       );
       return row;
     });
-    res
-      .status(201)
-      .json({
-        refund: {
-          id: result._id,
-          source: result.source,
-          status: result.status,
-          amountMinor: result.amountMinor,
-        },
-      });
+    res.status(201).json({
+      refund: {
+        id: result._id,
+        source: result.source,
+        status: result.status,
+        amountMinor: result.amountMinor,
+      },
+    });
   });
 }

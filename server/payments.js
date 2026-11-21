@@ -10,6 +10,7 @@ import {
 } from "./money.js";
 import { billView } from "./bill-view.js";
 import { awardLoyalty } from "./rewards.js";
+import { recordCash } from "./cash-drawer.js";
 
 export async function finishBill(store, bill, session, now = new Date()) {
   const methods = [
@@ -199,6 +200,19 @@ export async function appendPayment(store, bill, input, session) {
     },
     { session },
   );
+  if (input.method === "cash")
+    await recordCash(
+      store,
+      {
+        key: "bill:" + bill._id + ":" + record.id,
+        deltaMinor: amount,
+        kind: "bill_receipt",
+        by: record.by,
+        sourceId: bill._id,
+        reference: bill.receiptNo,
+      },
+      session,
+    );
   return updated.paidMinor === bill.totalMinor
     ? finishBill(store, updated, session)
     : updated;

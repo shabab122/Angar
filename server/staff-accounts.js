@@ -16,6 +16,7 @@ export const staffIdentity = (user) => ({
   role: user.role,
   name: user.name || user.username,
   mustChangePassword: Boolean(user.mustChangePassword),
+  mfaEnabled: Boolean(user.mfa?.enabled),
 });
 const reason = z.string().trim().min(3).max(160);
 const name = z.string().trim().min(2).max(80);

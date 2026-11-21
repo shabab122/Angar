@@ -3,6 +3,11 @@ import { z } from "zod";
 import { body, HttpError } from "./http.js";
 import { hash } from "./security.js";
 import { transaction } from "./money.js";
+import {
+  batchInput,
+  manualBatchChange,
+  orderBatchChange,
+} from "./ingredient-batches.js";
 
 const limit = 1_000_000_000;
 const positive = z.number().int().min(1).max(limit);
@@ -42,6 +47,7 @@ const view = (row) => ({
   reorderLevel: row.reorderLevel,
   revision: row.revision || 0,
   low: row.stock <= row.reorderLevel,
+  batchTracked: Boolean(row.batchTracked),
 });
 const lineKey = (item) =>
   [
@@ -68,6 +74,7 @@ function totalUsage(snapshot, items) {
     .map(([ingredientId, quantity]) => ({ ingredientId, quantity }));
 }
 async function applyUsage(store, order, previous, next, session, by, kind) {
+  let batchAllocations = [...(order.inventory?.batchAllocations || [])];
   const ids = [
     ...new Set([...previous, ...next].map((row) => row.ingredientId)),
   ].sort();
@@ -90,6 +97,18 @@ async function applyUsage(store, order, previous, next, session, by, kind) {
         "STOCK_LOW",
         "An ingredient has insufficient stock or its stock limit would be exceeded. Review inventory before sending or changing this order.",
       );
+    const allocations = await orderBatchChange(
+      store,
+      ingredient,
+      delta,
+      batchAllocations,
+      session,
+      order,
+    );
+    batchAllocations = [
+      ...batchAllocations.filter((item) => item.ingredientId !== id),
+      ...allocations,
+    ];
     await store.stockMovements.insertOne(
       {
         key:
@@ -102,12 +121,14 @@ async function applyUsage(store, order, previous, next, session, by, kind) {
         orderId: order._id,
         orderCode: order.code,
         kind,
+        batchAllocations: allocations,
         by,
         at: new Date(),
       },
       { session },
     );
   }
+  return batchAllocations;
 }
 
 export async function reserveOrderInventory(store, order, session, by) {
@@ -156,13 +177,27 @@ export async function reserveOrderInventory(store, order, session, by) {
     };
   });
   const totals = totalUsage(snapshot, order.items);
-  await applyUsage(store, order, [], totals, session, by, "order_reserved");
-  return { state: "reserved", lines: snapshot, totals, reservedAt: new Date() };
+  const batchAllocations = await applyUsage(
+    store,
+    order,
+    [],
+    totals,
+    session,
+    by,
+    "order_reserved",
+  );
+  return {
+    state: "reserved",
+    lines: snapshot,
+    totals,
+    batchAllocations,
+    reservedAt: new Date(),
+  };
 }
 export async function changeOrderInventory(store, order, items, session, by) {
   if (order.inventory?.state !== "reserved") return order.inventory || null;
   const totals = totalUsage(order.inventory.lines, items);
-  await applyUsage(
+  const batchAllocations = await applyUsage(
     store,
     order,
     order.inventory.totals,
@@ -174,6 +209,7 @@ export async function changeOrderInventory(store, order, items, session, by) {
   return {
     ...order.inventory,
     totals,
+    batchAllocations,
     state: items.length ? "reserved" : "released",
     updatedAt: new Date(),
   };
@@ -361,6 +397,11 @@ export function registerInventory(
           reason,
           reference: z.string().trim().max(80).default(""),
           requestKey: z.string().regex(/^[A-Za-z0-9_-]{16,80}$/),
+          batch: batchInput.optional(),
+          batchId: z
+            .string()
+            .regex(/^[a-f0-9]{24}$/)
+            .optional(),
         }),
         req.body,
       );
@@ -384,6 +425,8 @@ export function registerInventory(
             quantity: input.quantity,
             reason: input.reason,
             reference: input.reference,
+            batch: input.batch,
+            batchId: input.batchId,
           }),
         );
       const ingredient = await transaction(store, async (session) => {
@@ -418,6 +461,13 @@ export function registerInventory(
             "STOCK_LOW",
             "Stock cannot become negative or exceed its limit.",
           );
+        const batches = await manualBatchChange(
+          store,
+          row,
+          delta,
+          input,
+          session,
+        );
         await store.stockMovements.insertOne(
           {
             key: "manual:" + input.requestKey,
@@ -428,6 +478,7 @@ export function registerInventory(
             delta,
             balance: row.stock,
             kind: input.kind,
+            batches,
             by: req.staff.username,
             reason: input.reason,
             reference: input.reference,

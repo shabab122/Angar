@@ -21,6 +21,7 @@ import { BSON } from "mongodb";
 import { z } from "zod";
 import { body, HttpError } from "./http.js";
 import { passwordMatches } from "./security.js";
+import { queueCloudBackup, hasVerifiedCloudCopy } from "./backup-cloud.js";
 
 const compress = promisify(gzip),
   decompress = promisify(gunzip);
@@ -37,6 +38,9 @@ const transient = new Set([
   "phoneChallenges",
   "phoneSendLimits",
   "pushSubscriptions",
+  "staffMfaChallenges",
+  "staffMfaEnrollments",
+  "backupSyncJobs",
 ]);
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const defaults = { enabled: false, everyHours: 24, keep: 7, nextAt: null };
@@ -417,7 +421,7 @@ export async function restoreBackup(
     .collection("settings")
     .updateOne(
       { _id: "backup-config" },
-      { $set: { enabled: false, nextAt: null } },
+      { $set: { enabled: false, nextAt: null, offsiteEnabled: false } },
     );
   await target.collection("notificationPreferences").updateMany(
     {},
@@ -542,6 +546,7 @@ export async function runBackupJobs(store, config, now = new Date()) {
         ...defaults,
         ...(await store.settings.findOne({ _id: "backup-config" })),
       };
+      if (policy.offsiteEnabled) await queueCloudBackup(store, config, job._id);
       const files = await store.backupJobs
         .find({
           type: "create",
@@ -552,6 +557,11 @@ export async function runBackupJobs(store, config, now = new Date()) {
         .skip(policy.keep)
         .toArray();
       for (const old of files) {
+        if (
+          policy.offsiteEnabled &&
+          !(await hasVerifiedCloudCopy(store, config, old._id))
+        )
+          continue;
         if (
           await store.backupJobs.findOne({
             type: "verify",
