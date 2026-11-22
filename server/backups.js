@@ -41,6 +41,8 @@ const transient = new Set([
   "staffMfaChallenges",
   "staffMfaEnrollments",
   "backupSyncJobs",
+  "printJobs",
+  "staffAlertDeliveries",
 ]);
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const defaults = { enabled: false, everyHours: 24, keep: 7, nextAt: null };
@@ -423,6 +425,18 @@ export async function restoreBackup(
       { _id: "backup-config" },
       { $set: { enabled: false, nextAt: null, offsiteEnabled: false } },
     );
+  await target
+    .collection("settings")
+    .updateOne({ _id: "print-config" }, { $set: { autoEnabled: false } });
+  await target
+    .collection("settings")
+    .updateOne(
+      { _id: "staff-alert-config" },
+      { $set: { emailEnabled: false } },
+    );
+  await target
+    .collection("settings")
+    .updateOne({ _id: "staff-alert-scan" }, { $set: { nextAt: new Date(0) } });
   await target.collection("notificationPreferences").updateMany(
     {},
     {

@@ -130,6 +130,12 @@ function PurchaseDetails({ id, onClose }) {
           {!resource.data.receipts.length && (
             <p className="commerce-note">No delivery received yet.</p>
           )}
+          <p className="commerce-note">
+            Returned goods credit: {money((row.returnedMinor || 0) / 100)} ·
+            Supplier refunds received:{" "}
+            {money((row.supplierRefundMinor || 0) / 100)}. A negative
+            outstanding balance is supplier credit receivable.
+          </p>
           <h3>Supplier payment records</h3>
           {resource.data.payments.map((payment) => (
             <article className="v25-ledger-entry" key={payment.id}>

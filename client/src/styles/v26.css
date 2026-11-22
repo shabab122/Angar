@@ -1,0 +1,160 @@
+.v26-panel {
+  min-width: 0;
+}
+.v26-panel > h3 {
+  margin-block: 28px 18px;
+}
+.v26-panel .commerce-card > p {
+  margin-block: 12px;
+}
+.v26-panel .page-tabs {
+  flex-wrap: wrap;
+}
+.v26-panel .commerce-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.v26-panel .v25-table {
+  min-width: 560px;
+}
+.v26-panel .v25-table td {
+  overflow-wrap: anywhere;
+}
+.v26-panel .v25-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+.v26-record {
+  margin-top: 30px;
+}
+.v26-record > h3 {
+  margin-block: 16px;
+}
+.v26-checkbox-list {
+  max-height: 290px;
+  overflow-y: auto;
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.v26-credit-note {
+  display: grid;
+  gap: 18px;
+}
+.v26-ledger {
+  margin-block: 16px;
+}
+.v26-print-preview,
+.v26-thermal-receipt {
+  padding: 24px 16px;
+  max-width: 900px;
+  margin: auto;
+}
+.v26-no-print {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 25px;
+}
+.v26-no-print > p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.v26-thermal-ticket {
+  width: min(100%, 74mm);
+  padding: 3mm;
+  margin: auto;
+  background: white;
+  color: black;
+  box-shadow: 0 8px 30px #0001;
+  font: 13px/1.6 var(--sans);
+  overflow-wrap: anywhere;
+}
+.v26-thermal-ticket h1 {
+  font-size: 17px;
+  margin-bottom: 14px;
+}
+.v26-thermal-ticket p {
+  white-space: pre-wrap;
+  margin-block: 6px;
+}
+.v26-thermal-receipt .receipt-page {
+  width: min(100%, 80mm);
+  margin: auto;
+  padding: 0;
+}
+.v26-thermal-receipt .receipt-sheet {
+  width: 100%;
+  padding: 3mm;
+  box-shadow: none;
+  border: 0;
+}
+.v26-thermal-receipt .receipt-sheet .brand {
+  transform-origin: left;
+  max-width: 100%;
+}
+.v26-thermal-receipt .receipt-table {
+  font-size: 11px;
+}
+.v26-thermal-receipt .receipt-table th,
+.v26-thermal-receipt .receipt-table td {
+  padding: 8px 3px;
+}
+.v26-thermal-receipt .receipt-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .v26-panel .panel-heading {
+    align-items: flex-start;
+  }
+  .v26-panel .v25-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .v26-panel .v25-metrics strong {
+    font-size: 21px;
+  }
+  .v26-panel .page-tabs > button {
+    font-size: 11px;
+    padding-inline: 10px;
+  }
+  .v26-panel .commerce-section-heading {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+@page angar-thermal {
+  size: auto;
+  margin: 3mm;
+}
+@media print {
+  .v26-no-print {
+    display: none !important;
+  }
+  .v26-print-preview,
+  .v26-thermal-receipt {
+    page: angar-thermal;
+    margin: 0;
+    padding: 0;
+    max-width: 80mm;
+  }
+  .v26-thermal-ticket {
+    width: 74mm;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    break-inside: auto;
+  }
+  .v26-thermal-receipt .receipt-page,
+  .v26-thermal-receipt .receipt-sheet {
+    width: 74mm;
+    max-width: 74mm;
+    padding: 0;
+    margin: 0;
+  }
+  .v26-thermal-receipt .receipt-sheet {
+    font-size: 10px;
+  }
+}

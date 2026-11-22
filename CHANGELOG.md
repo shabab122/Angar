@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.6.0
+
+Base: `Angar_Kitchen_React_v2.5.zip`. Existing restaurant design/assets, guest QR ordering, bills/refunds, accounts, staff MFA, reservations, pickup/delivery, notifications, batch inventory and encrypted/cloud backups are retained.
+
+- Added physical stocktake snapshots, ingredient/lot counts, submission and administrator review, atomic reconciliation, stale-stock rejection and explicit recounts.
+- Added original-receipt supplier return reservations, approval, confirmed physical handover, exact partial credit notes, revised payables and verified supplier refund receipts linked to the cash drawer.
+- Added supported opening inventory valuation, exact weighted-average stock values, immutable recipe consumption costs and original-value pre-cooking returns. Missing legacy costs remain explicitly incomplete.
+- Added salary/rent/other operating expense requests, administrator decisions, partial verified payments, cash reconciliation and a settlement-based VAT-exclusive operating-result report/CSV with its policy and cost coverage visible.
+- Added automatic revisioned KOTs for table/pickup/delivery acceptance and approved changes/cancellations, superseded pending tickets, Unicode browser thermal previews, optional ASCII ESC/POS TCP sending, physical output confirmation and audited marked reprints. Uncertain transmissions are never automatically repeated.
+- Added automatic usable-stock, expiry and supplier-overdue staff alerts, role-filtered views, personal acknowledgement, configurable expiry windows and opt-in daily staff email digests with reviewed uncertain-delivery retries.
+- Extended recovery to retain new business ledgers while clearing print/email jobs and disabling their automatic external effects. Added Bengali v2.6 setup/upgrade instructions and regression, workflow, TCP and recovery coverage; bounded test-file concurrency for development machines.
+
 ## 2.5.0
 
 Base: `Angar_Kitchen_React_v2.4.zip`. Existing restaurant design/assets, QR ordering, guest accounts, split/partial bills, refunds, reservations, notifications, pickup/delivery and the React–Express–MongoDB stack are retained.

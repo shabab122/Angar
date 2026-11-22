@@ -1,3 +1,4 @@
+import { minorAmount } from "../components/Financial";
 import { useState } from "react";
 import { AlertTriangle, PackagePlus, Plus, Trash2 } from "lucide-react";
 import { useApp } from "../lib/AppContext";
@@ -48,6 +49,7 @@ export function InventoryPanel({ user }) {
             reorderLevel: String(row?.reorderLevel || 0),
             kind: admin ? "receive" : "waste",
             quantity: "",
+            receiptCost: "",
             reason: "",
             reference: "",
             batch: emptyBatch(),
@@ -100,6 +102,16 @@ export function InventoryPanel({ user }) {
                       : { batchId: values.batchId }
                     : {}),
                 };
+      if (
+        type === "stock" &&
+        values.kind === "receive" &&
+        values.receiptCost !== ""
+      ) {
+        const amount = minorAmount(values.receiptCost);
+        if (amount === null)
+          throw new Error("Enter a valid exact receipt cost.");
+        data.costMinor = amount;
+      }
       await api(endpoint, {
         method: type === "metadata" ? "PATCH" : "POST",
         data,
@@ -460,6 +472,23 @@ export function InventoryPanel({ user }) {
                     }
                   />
                 </label>
+                {values.kind === "receive" && admin && (
+                  <label>
+                    Actual acquisition cost for this receipt (BDT, optional)
+                    <input
+                      aria-label="Stock receipt acquisition cost"
+                      inputMode="decimal"
+                      value={values.receiptCost}
+                      onChange={(e) =>
+                        setValues({ ...values, receiptCost: e.target.value })
+                      }
+                    />
+                    <small>
+                      Leave blank if the cost is unknown. Use purchase
+                      deliveries to record supplier payables.
+                    </small>
+                  </label>
+                )}
                 {action.row.batchTracked &&
                   (values.kind === "receive" ||
                   (values.kind === "correction" &&

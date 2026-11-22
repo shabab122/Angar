@@ -1,3 +1,4 @@
+import { minorAmount } from "../components/Financial";
 import { useState } from "react";
 import { PackageCheck, Plus, RefreshCw } from "lucide-react";
 import { useApp } from "../lib/AppContext";
@@ -96,6 +97,7 @@ export function InventoryBatchesPanel({ user }) {
       reason: "",
       kind: admin ? "receive" : "waste",
       quantity: "",
+      receiptCost: "",
       reference: "",
       batchId: "",
       batch: emptyBatch(),
@@ -145,6 +147,16 @@ export function InventoryBatchesPanel({ user }) {
             ? { batch: batchPayload(values.batch) }
             : { batchId: values.batchId }),
         };
+      }
+      if (
+        action.type === "stock" &&
+        values.kind === "receive" &&
+        values.receiptCost !== ""
+      ) {
+        const amount = minorAmount(values.receiptCost);
+        if (amount === null)
+          throw new Error("Enter a valid exact receipt cost.");
+        data.costMinor = amount;
       }
       await api(path, { method: "POST", data });
       setAction(null);
@@ -554,6 +566,23 @@ export function InventoryBatchesPanel({ user }) {
                           </option>
                         ))}
                     </select>
+                  </label>
+                )}
+                {admin && values.kind === "receive" && (
+                  <label>
+                    Actual acquisition cost for this receipt (BDT, optional)
+                    <input
+                      aria-label="Stock receipt acquisition cost"
+                      inputMode="decimal"
+                      value={values.receiptCost}
+                      onChange={(e) =>
+                        setValues({ ...values, receiptCost: e.target.value })
+                      }
+                    />
+                    <small>
+                      Unknown cost leaves valuation incomplete. Supplier
+                      payables use the purchase delivery screen.
+                    </small>
                   </label>
                 )}
                 <label>

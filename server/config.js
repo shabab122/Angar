@@ -82,6 +82,16 @@ export function loadConfig(env = process.env) {
       "SSLCOMMERZ_PUBLIC_ORIGIN must be a public HTTPS origin without a path.",
     );
   return {
+    kitchenPrinter: {
+      host: env.KITCHEN_PRINTER_HOST || "",
+      port: Number(env.KITCHEN_PRINTER_PORT || 9100),
+      columns: Number(env.KITCHEN_PRINTER_COLUMNS || 42),
+      cut: env.KITCHEN_PRINTER_CUT === "true",
+    },
+    staffAlertEmails: (env.STAFF_ALERT_EMAIL_TO || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
     staffMfa: {
       key: env.MFA_ENCRYPTION_KEY || "",
       requireAdmin: env.STAFF_REQUIRE_2FA_ADMIN === "true",

@@ -1,3 +1,5 @@
+import { queueKitchenTicket } from "./printing.js";
+import { recordConsumption } from "./inventory-cost.js";
 import { z } from "zod";
 import { body, HttpError } from "./http.js";
 import { ACTIONS, lockAvailableDishes, orderView } from "./orders.js";
@@ -97,6 +99,7 @@ export async function moveOrder(store, id, action, reasonText, user) {
       );
     if (action === "start" && order.inventory) {
       await assertReservedBatches(store, order, session);
+      await recordConsumption(store, order, session, user.username);
       set.inventory = {
         ...order.inventory,
         state: "consumed",
@@ -135,6 +138,8 @@ export async function moveOrder(store, id, action, reasonText, user) {
       },
       { session, returnDocument: "after" },
     );
+    if (action === "send")
+      await queueKitchenTicket(store, updated, "new", session, user.username);
     return orderView(updated, true);
   });
 }
@@ -185,6 +190,14 @@ export async function cancelBeforeCooking(store, id, reasonText, user) {
       },
       { session },
     );
+    if (order.status === "queued")
+      await queueKitchenTicket(
+        store,
+        { ...order, ...set, revision: (order.revision || 0) + 1 },
+        "cancelled",
+        session,
+        user.username,
+      );
     await store.audit.insertOne(
       {
         type: "order.cancelled",
@@ -452,6 +465,14 @@ export function registerStaffOrderChanges(api, store, requireAdmin, requireId) {
           },
           { session },
         );
+        if (status === "approved" && order.status === "queued")
+          await queueKitchenTicket(
+            store,
+            updated,
+            change.type === "cancel" ? "cancelled" : "changed",
+            session,
+            req.staff.username,
+          );
         return orderView(updated, true);
       });
       res.json({ order: result });

@@ -1,11 +1,25 @@
-# Angar Kitchen · React v2.5
+# Angar Kitchen · React v2.6
 
 বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
 
 **প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
 
 
-## v2.5 — এই release-এর ছয়টি নতুন ফিচার
+## v2.6 — এই release-এর পাঁচটি নতুন ফিচার
+
+**Base: Angar_Kitchen_React_v2.5.zip।** Existing stack, guest design/assets এবং working features রেখে এই release তৈরি। Full upgrade/setup guide: [UPGRADE_v2.6_BN.md](UPGRADE_v2.6_BN.md)।
+
+| ফিচার | কোথায় / কী যোগ হয়েছে |
+|---|---|
+| Physical stocktake | Physical stock counts: ingredient/lot snapshot, physical counts, manager review, transactional adjustments ও stale-count recount। |
+| Supplier returns / credit notes | Supplier returns & credits: original receipt reservation, approval, physical handover, payable credit, actual supplier refund receipt ও cash drawer integration। |
+| Expenses / operating result | Expenses & operating result: supported opening valuation, weighted recipe costs, approved operating expenses, partial actual payments ও VAT-exclusive management result / CSV। Historical costs missing হলে estimate দেখায়। |
+| Kitchen tickets / thermal printer | Automatic revisioned KOTs, superseded old pending tickets, 80 mm browser receipt, optional operator-configured ASCII ESC/POS TCP printer, explicit physical confirmation ও marked reprints। |
+| Automated staff alerts | Operations alerts: usable low stock, approaching/expired lots, overdue supplier balances, personal acknowledgement ও optional daily staff email digest। |
+
+Existing installation-এ পুরোনো `.env`, database, photos/backups এবং original backup/MFA keys রাখুন; আলাদা folder-এ `npm ci`, `npm run setup`, `npm run build`, `npm start`। আবার seed/reset লাগবে না। Direct printer ও staff email default off; নিজের printer/SMTP settings ও acceptance test প্রয়োজন। New KOT creation ও in-app staff alerts external service ছাড়াই চলে।
+
+## v2.5-এর সংরক্ষিত ছয়টি ফিচার
 
 **Base: Angar_Kitchen_React_v2.4.zip।** আগের design/assets, React–Express–MongoDB stack ও working features রেখে এই সংযোজনগুলো হয়েছে। Existing data রেখে upgrade এবং নতুন configuration-এর পূর্ণ নির্দেশনা: [UPGRADE_v2.5_BN.md](UPGRADE_v2.5_BN.md)।
 
@@ -188,7 +202,7 @@ npm run tables -- T01
 | Admin | Live overview, paid sales reports/CSV, menu create/edit, kitchen availability controls, ordering pause, restaurant settings, role-based queues |
 | Menu guide | Budget, group size ও spice অনুযায়ী বর্তমান মেনু থেকে deterministic matching; external AI service লাগে না |
 
-**পরবর্তী integration/কাজ:** external courier dispatch/GPS, POS/thermal printer integration, multi-branch/multi-tenant support ও event configuration editor। Menu guide deterministic matching ব্যবহার করে। Counter-এর bKash/Nagad/card selection বাস্তবে পাওয়া টাকা **রেকর্ড** করে; online টাকা কাটার জন্য পৃথক SSLCOMMERZ checkout আছে। Event deposit-ও staff-এর verified record; v2.4-এ এর approval/return workflow আছে।
+**পরবর্তী integration/কাজ:** external courier dispatch/GPS, multi-branch/multi-tenant support ও event configuration editor। Menu guide deterministic matching ব্যবহার করে। Counter-এর bKash/Nagad/card selection বাস্তবে পাওয়া টাকা **রেকর্ড** করে; online টাকা কাটার জন্য পৃথক SSLCOMMERZ checkout আছে। Event deposit-ও staff-এর verified record; v2.4-এ এর approval/return workflow আছে।
 
 প্রথম বিক্রির আগে restaurant-specific menu/fees, staff workflow, event terms, legal/tax rules ও বাস্তব devices দিয়ে acceptance test প্রয়োজন। এটি চালানো যায় এমন প্রথম product version; production hosting, merchant onboarding ও operational approval আলাদা কাজ।
 

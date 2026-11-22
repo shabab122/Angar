@@ -1,3 +1,5 @@
+import { queueKitchenTicket } from "./printing.js";
+import { recordConsumption } from "./inventory-cost.js";
 import { ObjectId } from "mongodb";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -807,6 +809,7 @@ export function registerStaffFulfillment(
         }
         if (input.action === "prepare" && row.inventory) {
           await assertReservedBatches(store, row, session);
+          await recordConsumption(store, row, session, req.staff.username);
           changes.inventory = {
             ...row.inventory,
             state: "consumed",
@@ -826,6 +829,17 @@ export function registerStaffFulfillment(
         { $set: changes, $push: { history } },
         { session },
       );
+      if (
+        input.action === "accept" ||
+        (input.action === "cancel" && row.status !== "placed")
+      )
+        await queueKitchenTicket(
+          store,
+          { ...row, ...changes, revision: (row.revision || 0) + 1 },
+          input.action === "accept" ? "new" : "cancelled",
+          session,
+          req.staff.username,
+        );
       if (input.action === "accept" && bill.totalMinor === 0) {
         bill = await finishBill(store, bill, session, now);
         changes.paymentStatus = "paid";

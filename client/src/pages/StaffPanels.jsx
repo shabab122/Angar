@@ -926,7 +926,7 @@ export function BillingPanel({ notify, onRefresh }) {
           title="Table receipt"
           className="receipt-dialog"
         >
-          <Receipt bill={receipt} />
+          <Receipt staff bill={receipt} />
         </Modal>
       )}
     </PanelState>

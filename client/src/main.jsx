@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AppProvider } from "./lib/AppContext";
@@ -24,6 +25,17 @@ import "./styles/commerce.css";
 import "./styles/management.css";
 import "./styles/v24.css";
 import "./styles/v25.css";
+import "./styles/v26.css";
+const PrintJobPreview = lazy(() =>
+  import("./pages/PrintingPanel").then((module) => ({
+    default: module.PrintJobPreview,
+  })),
+);
+const ThermalReceipt = lazy(() =>
+  import("./pages/PrintingPanel").then((module) => ({
+    default: module.ThermalReceipt,
+  })),
+);
 
 function App() {
   return (
@@ -57,6 +69,22 @@ function App() {
           />
         </Route>
         <Route path="staff" element={<Staff />} />
+        <Route
+          path="staff/print/:id"
+          element={
+            <Suspense fallback={<p>Opening print preview…</p>}>
+              <PrintJobPreview />
+            </Suspense>
+          }
+        />
+        <Route
+          path="staff/receipt/:id/thermal"
+          element={
+            <Suspense fallback={<p>Opening thermal receipt…</p>}>
+              <ThermalReceipt />
+            </Suspense>
+          }
+        />
       </Routes>
       <CartDrawer />
       <DishModal />

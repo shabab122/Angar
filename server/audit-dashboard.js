@@ -17,6 +17,10 @@ export function csvDocument(rows) {
   );
 }
 const refs = [
+  "stocktakeId",
+  "supplierReturnId",
+  "expenseId",
+  "printJobId",
   "billId",
   "orderId",
   "refundId",
