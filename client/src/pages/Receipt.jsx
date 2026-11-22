@@ -6,7 +6,7 @@ import { dhakaTime } from "../lib/api";
 import { Button, ErrorMessage, Loading, Logo } from "../components/UI";
 import { PaymentLedger } from "../components/Financial";
 
-export function Receipt({ staff = false, bill: provided }) {
+export function Receipt({ staff = false, bill: provided, thermal = false }) {
   const { id } = useParams();
   const { t, money, name, language } = useApp();
   const resource = useResource(
@@ -164,6 +164,16 @@ export function Receipt({ staff = false, bill: provided }) {
             <Printer size={16} />
             {t("Print receipt", "রসিদ প্রিন্ট করুন")}
           </Button>
+          {staff && !thermal && (
+            <a
+              className="button button-secondary"
+              target="_blank"
+              rel="noreferrer"
+              href={"/staff/receipt/" + bill.id + "/thermal"}
+            >
+              80 mm thermal receipt
+            </a>
+          )}
         </div>
       </article>
     </section>

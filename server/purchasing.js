@@ -1,3 +1,4 @@
+import { moveInventoryValue } from "./inventory-cost.js";
 import { ObjectId } from "mongodb";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -84,10 +85,19 @@ export const purchaseView = (row) => ({
   orderedMinor: row.orderedMinor,
   receivedMinor: row.receivedMinor,
   paidMinor: row.paidMinor,
-  balanceMinor: row.receivedMinor - row.paidMinor,
+  balanceMinor:
+    row.receivedMinor -
+    (row.returnedMinor || 0) -
+    row.paidMinor +
+    (row.supplierRefundMinor || 0),
+  returnedMinor: row.returnedMinor || 0,
+  supplierRefundMinor: row.supplierRefundMinor || 0,
   dueOn: row.dueOn,
   overdue: Boolean(
-    row.dueOn && row.dueOn < stockDay() && row.receivedMinor > row.paidMinor,
+    row.dueOn &&
+      row.dueOn < stockDay() &&
+      row.receivedMinor - (row.returnedMinor || 0) >
+        row.paidMinor - (row.supplierRefundMinor || 0),
   ),
   notes: row.notes,
   revision: row.revision || 0,
@@ -152,6 +162,8 @@ export function registerPurchasing(
             _id: "$supplierId",
             receivedMinor: { $sum: "$receivedMinor" },
             paidMinor: { $sum: "$paidMinor" },
+            returnedMinor: { $sum: "$returnedMinor" },
+            supplierRefundMinor: { $sum: "$supplierRefundMinor" },
           },
         },
       ])
@@ -163,8 +175,13 @@ export function registerPurchasing(
           ...supplierView(row),
           receivedMinor: balance?.receivedMinor || 0,
           paidMinor: balance?.paidMinor || 0,
+          returnedMinor: balance?.returnedMinor || 0,
+          supplierRefundMinor: balance?.supplierRefundMinor || 0,
           balanceMinor:
-            (balance?.receivedMinor || 0) - (balance?.paidMinor || 0),
+            (balance?.receivedMinor || 0) -
+            (balance?.returnedMinor || 0) -
+            (balance?.paidMinor || 0) +
+            (balance?.supplierRefundMinor || 0),
         };
       }),
     });
@@ -283,6 +300,8 @@ export function registerPurchasing(
               orderedMinor: { $sum: "$orderedMinor" },
               receivedMinor: { $sum: "$receivedMinor" },
               paidMinor: { $sum: "$paidMinor" },
+              returnedMinor: { $sum: "$returnedMinor" },
+              supplierRefundMinor: { $sum: "$supplierRefundMinor" },
             },
           },
         ])
@@ -293,8 +312,13 @@ export function registerPurchasing(
         orderedMinor: totals?.orderedMinor || 0,
         receivedMinor: totals?.receivedMinor || 0,
         paidMinor: totals?.paidMinor || 0,
+        returnedMinor: totals?.returnedMinor || 0,
+        supplierRefundMinor: totals?.supplierRefundMinor || 0,
         outstandingMinor:
-          (totals?.receivedMinor || 0) - (totals?.paidMinor || 0),
+          (totals?.receivedMinor || 0) -
+          (totals?.returnedMinor || 0) -
+          (totals?.paidMinor || 0) +
+          (totals?.supplierRefundMinor || 0),
       },
     });
   });
@@ -577,6 +601,10 @@ export function registerPurchasing(
             line.unitPriceMinor,
             line.pricePerQuantity,
           );
+        await moveInventoryValue(store, ingredient, item.quantity, session, {
+          amountMinor: value,
+          knownQuantity: item.quantity,
+        });
         line.receivedQuantity += item.quantity;
         receivedValue += value;
         receiptItems.push({
@@ -702,7 +730,14 @@ export function registerPurchasing(
         { $inc: { revision: 1 } },
         { session, returnDocument: "after" },
       );
-      if (!row || input.amountMinor > row.receivedMinor - row.paidMinor)
+      if (
+        !row ||
+        input.amountMinor >
+          row.receivedMinor -
+            (row.returnedMinor || 0) -
+            row.paidMinor +
+            (row.supplierRefundMinor || 0)
+      )
         throw new HttpError(
           409,
           "SUPPLIER_PAYMENT_LIMIT",

@@ -8,6 +8,15 @@ export async function connectDatabase(config) {
     await client.connect();
     const db = client.db(config.mongoDatabase);
     const collections = {
+      stocktakes: db.collection("stocktakes"),
+      inventoryConsumptions: db.collection("inventoryConsumptions"),
+      supplierReturns: db.collection("supplierReturns"),
+      supplierRefunds: db.collection("supplierRefunds"),
+      expenses: db.collection("expenses"),
+      expensePayments: db.collection("expensePayments"),
+      printJobs: db.collection("printJobs"),
+      staffAlerts: db.collection("staffAlerts"),
+      staffAlertDeliveries: db.collection("staffAlertDeliveries"),
       dishes: db.collection("dishes"),
       tables: db.collection("tables"),
       orders: db.collection("orders"),
@@ -56,6 +65,29 @@ export async function connectDatabase(config) {
     };
     const { dishes, tables, orders, reviews, staff, sessions } = collections;
     await Promise.all([
+      collections.stocktakes.createIndex({ requestKey: 1 }, { unique: true }),
+      collections.stocktakes.createIndex({ createdAt: -1 }),
+      collections.inventoryConsumptions.createIndex({ at: -1 }),
+      collections.supplierReturns.createIndex(
+        { requestKey: 1 },
+        { unique: true },
+      ),
+      collections.supplierReturns.createIndex({ receiptId: 1, status: 1 }),
+      collections.supplierReturns.createIndex({ createdAt: -1 }),
+      collections.supplierRefunds.createIndex(
+        { requestKey: 1 },
+        { unique: true },
+      ),
+      collections.expenses.createIndex({ requestKey: 1 }, { unique: true }),
+      collections.expenses.createIndex({ incurredOn: 1, status: 1 }),
+      collections.expensePayments.createIndex(
+        { requestKey: 1 },
+        { unique: true },
+      ),
+      collections.printJobs.createIndex({ status: 1, createdAt: 1 }),
+      collections.printJobs.createIndex({ sourceId: 1, createdAt: -1 }),
+      collections.staffAlerts.createIndex({ active: 1, lastSeenAt: -1 }),
+      collections.staffAlertDeliveries.createIndex({ status: 1, nextAt: 1 }),
       collections.audit.createIndex({ at: -1, _id: -1 }),
       collections.audit.createIndex({ type: 1, at: -1 }),
       collections.audit.createIndex({ by: 1, at: -1 }),
@@ -240,6 +272,32 @@ export async function connectDatabase(config) {
       { $setOnInsert: { revision: 0, activeShiftId: null } },
       { upsert: true },
     );
+    await collections.settings.updateOne(
+      { _id: "stocktake-setup-lock" },
+      { $setOnInsert: { revision: 0 } },
+      { upsert: true },
+    );
+    await collections.settings.updateOne(
+      { _id: "supplier-setup-lock" },
+      { $setOnInsert: { revision: 0 } },
+      { upsert: true },
+    );
+    for (const id of [
+      "supplier-credit-counter",
+      "expense-setup-lock",
+      "print-request-lock",
+      "staff-alert-scan",
+    ])
+      await collections.settings.updateOne(
+        { _id: id },
+        {
+          $setOnInsert: {
+            revision: 0,
+            ...(id === "supplier-credit-counter" ? { sequence: 0 } : {}),
+          },
+        },
+        { upsert: true },
+      );
     return { client, db, ...collections };
   } catch (error) {
     await client.close();

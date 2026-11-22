@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -54,7 +54,33 @@ import {
   TablesPanel,
 } from "./StaffPanels";
 
+const StocktakesPanel = lazy(() => import("./StocktakesPanel"));
+const SupplierReturnsPanel = lazy(() => import("./SupplierReturnsPanel"));
+const FinancePanel = lazy(() => import("./FinancePanel"));
+const PrintingPanel = lazy(() => import("./PrintingPanel"));
+const OperationsAlerts = lazy(() => import("./OperationsAlerts"));
+
 const navigation = [
+  ["stocktakes", PackageCheck, "Physical stock counts", ["admin", "kitchen"]],
+  [
+    "supplierReturns",
+    Truck,
+    "Supplier returns & credits",
+    ["admin", "cashier"],
+  ],
+  ["finance", Wallet, "Expenses & operating result", ["admin", "cashier"]],
+  [
+    "printing",
+    ClipboardList,
+    "Kitchen & receipt printing",
+    ["admin", "kitchen", "cashier"],
+  ],
+  [
+    "operationsAlerts",
+    BellRing,
+    "Operations alerts",
+    ["admin", "kitchen", "cashier"],
+  ],
   ["overview", LayoutDashboard, "Overview", ["admin", "cashier"]],
   ["orders", ClipboardList, "Order desk", ["admin", "kitchen", "waiter"]],
   [
@@ -348,6 +374,10 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
     interval: 10000,
     enabled: tab !== "access",
   });
+  const operationsAlerts = useResource("/staff/operations-alerts", {
+    enabled: ["admin", "kitchen", "cashier"].includes(user.role),
+    interval: 60000,
+  });
   const floorQueue = useResource("/staff/service-requests", {
     interval: 3000,
     enabled: ["admin", "waiter"].includes(user.role),
@@ -444,6 +474,18 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
             >
               <Icon size={18} />
               <span>{label}</span>
+              {id === "operationsAlerts" &&
+                operationsAlerts.data?.alerts.filter(
+                  (a) => a.active && !a.acknowledged,
+                ).length > 0 && (
+                  <b>
+                    {
+                      operationsAlerts.data.alerts.filter(
+                        (a) => a.active && !a.acknowledged,
+                      ).length
+                    }
+                  </b>
+                )}
               {id === "orders" &&
                 queue.data?.orders.filter(
                   (order) =>
@@ -585,6 +627,13 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
           {tab === "refunds" && <RefundsPanel {...common} />}
           {tab === "team" && <StaffAccounts user={user} />}
           {tab === "inventory" && <InventoryPanel {...common} />}
+          <Suspense fallback={<Loading />}>
+            {tab === "stocktakes" && <StocktakesPanel user={user} />}
+            {tab === "supplierReturns" && <SupplierReturnsPanel user={user} />}
+            {tab === "finance" && <FinancePanel user={user} />}
+            {tab === "printing" && <PrintingPanel user={user} />}
+            {tab === "operationsAlerts" && <OperationsAlerts user={user} />}
+          </Suspense>
           {tab === "batches" && <InventoryBatchesPanel user={user} />}
           {tab === "purchasing" && <PurchasingPanel user={user} />}
           {tab === "invoices" && <InvoiceSettings />}

@@ -1,3 +1,4 @@
+import { moveInventoryValue, ratioMinor } from "./inventory-cost.js";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { body, HttpError } from "./http.js";
@@ -75,6 +76,7 @@ function totalUsage(snapshot, items) {
 }
 async function applyUsage(store, order, previous, next, session, by, kind) {
   let batchAllocations = [...(order.inventory?.batchAllocations || [])];
+  let costs = [...(order.inventory?.costs || [])].map((item) => ({ ...item }));
   const ids = [
     ...new Set([...previous, ...next].map((row) => row.ingredientId)),
   ].sort();
@@ -97,6 +99,47 @@ async function applyUsage(store, order, previous, next, session, by, kind) {
         "STOCK_LOW",
         "An ingredient has insufficient stock or its stock limit would be exceeded. Review inventory before sending or changing this order.",
       );
+    const held = costs.find((item) => item.ingredientId === id) || {
+      ingredientId: id,
+      quantity: old,
+      amountMinor: 0,
+      knownQuantity: 0,
+    };
+    const returned =
+      delta > 0
+        ? {
+            amountMinor: old ? ratioMinor(held.amountMinor, delta, old) : 0,
+            knownQuantity: old
+              ? Math.max(
+                  held.knownQuantity - needed,
+                  Math.min(
+                    delta,
+                    held.knownQuantity,
+                    ratioMinor(held.knownQuantity, delta, old),
+                  ),
+                )
+              : 0,
+          }
+        : null;
+    const cost = await moveInventoryValue(
+      store,
+      ingredient,
+      delta,
+      session,
+      returned,
+    );
+    costs = [
+      ...costs.filter((item) => item.ingredientId !== id),
+      {
+        ingredientId: id,
+        quantity: needed,
+        amountMinor:
+          held.amountMinor + (delta < 0 ? cost.amountMinor : -cost.amountMinor),
+        knownQuantity:
+          held.knownQuantity +
+          (delta < 0 ? cost.knownQuantity : -cost.knownQuantity),
+      },
+    ].filter((item) => item.quantity > 0);
     const allocations = await orderBatchChange(
       store,
       ingredient,
@@ -122,13 +165,14 @@ async function applyUsage(store, order, previous, next, session, by, kind) {
         orderCode: order.code,
         kind,
         batchAllocations: allocations,
+        cost,
         by,
         at: new Date(),
       },
       { session },
     );
   }
-  return batchAllocations;
+  return { batchAllocations, costs };
 }
 
 export async function reserveOrderInventory(store, order, session, by) {
@@ -170,6 +214,7 @@ export async function reserveOrderInventory(store, order, session, by) {
       );
     return {
       key: lineKey(item),
+      costConfigured: Boolean(recipe && combined.size),
       ingredients: [...combined].map(([ingredientId, quantity]) => ({
         ingredientId,
         quantity,
@@ -177,7 +222,7 @@ export async function reserveOrderInventory(store, order, session, by) {
     };
   });
   const totals = totalUsage(snapshot, order.items);
-  const batchAllocations = await applyUsage(
+  const valuation = await applyUsage(
     store,
     order,
     [],
@@ -190,14 +235,14 @@ export async function reserveOrderInventory(store, order, session, by) {
     state: "reserved",
     lines: snapshot,
     totals,
-    batchAllocations,
+    ...valuation,
     reservedAt: new Date(),
   };
 }
 export async function changeOrderInventory(store, order, items, session, by) {
   if (order.inventory?.state !== "reserved") return order.inventory || null;
   const totals = totalUsage(order.inventory.lines, items);
-  const batchAllocations = await applyUsage(
+  const valuation = await applyUsage(
     store,
     order,
     order.inventory.totals,
@@ -209,7 +254,7 @@ export async function changeOrderInventory(store, order, items, session, by) {
   return {
     ...order.inventory,
     totals,
-    batchAllocations,
+    ...valuation,
     state: items.length ? "reserved" : "released",
     updatedAt: new Date(),
   };
@@ -398,6 +443,7 @@ export function registerInventory(
           reference: z.string().trim().max(80).default(""),
           requestKey: z.string().regex(/^[A-Za-z0-9_-]{16,80}$/),
           batch: batchInput.optional(),
+          costMinor: z.number().int().min(0).max(1_000_000_000_000).optional(),
           batchId: z
             .string()
             .regex(/^[a-f0-9]{24}$/)
@@ -426,6 +472,7 @@ export function registerInventory(
             reason: input.reason,
             reference: input.reference,
             batch: input.batch,
+            costMinor: input.costMinor,
             batchId: input.batchId,
           }),
         );
@@ -461,6 +508,24 @@ export function registerInventory(
             "STOCK_LOW",
             "Stock cannot become negative or exceed its limit.",
           );
+        if (
+          input.costMinor !== undefined &&
+          (input.kind !== "receive" || delta <= 0)
+        )
+          throw new HttpError(
+            400,
+            "COST_RECEIPT",
+            "An actual acquisition cost is accepted only for stock received.",
+          );
+        const cost = await moveInventoryValue(
+          store,
+          row,
+          delta,
+          session,
+          input.costMinor !== undefined
+            ? { amountMinor: input.costMinor, knownQuantity: delta }
+            : null,
+        );
         const batches = await manualBatchChange(
           store,
           row,
@@ -479,6 +544,7 @@ export function registerInventory(
             balance: row.stock,
             kind: input.kind,
             batches,
+            cost,
             by: req.staff.username,
             reason: input.reason,
             reference: input.reference,

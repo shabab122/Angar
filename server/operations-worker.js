@@ -1,3 +1,5 @@
+import { runPrintJobs } from "./printing.js";
+import { scanStaffAlerts, runStaffAlertDeliveries } from "./staff-alerts.js";
 import { runBackupJobs } from "./backups.js";
 import { runCloudBackupJobs } from "./backup-cloud.js";
 export function startOperationsWorker(store, config, extra = async () => {}) {
@@ -5,6 +7,11 @@ export function startOperationsWorker(store, config, extra = async () => {}) {
   const tasks = [
     () => runBackupJobs(store, config),
     () => runCloudBackupJobs(store, config),
+    () => runPrintJobs(store, config),
+    async () => {
+      await scanStaffAlerts(store, config);
+      await runStaffAlertDeliveries(store, config);
+    },
     extra,
   ].map((work) => ({
     work,

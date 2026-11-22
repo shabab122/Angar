@@ -619,6 +619,8 @@ export function createApp(store, config, frontendMiddleware) {
         "/about",
         "/events",
         "/staff",
+        "/staff/print/:id",
+        "/staff/receipt/:id/thermal",
         "/account",
         "/account/action",
         "/notifications",

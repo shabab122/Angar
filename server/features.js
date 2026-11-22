@@ -1,3 +1,8 @@
+import { registerStocktakes } from "./stocktakes.js";
+import { registerSupplierReturns } from "./supplier-returns.js";
+import { registerFinance } from "./finance.js";
+import { registerPrinting } from "./printing.js";
+import { registerStaffAlerts } from "./staff-alerts.js";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -251,6 +256,17 @@ export function registerStaffFeatures(
     requireId,
     allowRoles("admin", "kitchen"),
   );
+  registerStocktakes(
+    api,
+    store,
+    requireAdmin,
+    allowRoles("admin", "kitchen"),
+    requireId,
+  );
+  registerSupplierReturns(api, store, requireAdmin, billingRoles, requireId);
+  registerFinance(api, store, requireAdmin, billingRoles, requireId);
+  registerPrinting(api, store, config, requireAdmin, billingRoles, requireId);
+  registerStaffAlerts(api, store, config, requireAdmin);
   registerInvoices(api, store, requireAdmin);
   registerBackups(api, store, config, requireAdmin);
   registerCloudBackups(api, store, config, requireAdmin);
