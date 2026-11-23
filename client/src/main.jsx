@@ -1,3 +1,4 @@
+import { initializeBranch } from "./lib/branch";
 import { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -10,7 +11,9 @@ import { Orders } from "./pages/Orders";
 import { About } from "./pages/About";
 import { Events } from "./pages/Events";
 import { Receipt } from "./pages/Receipt";
-import { Staff } from "./pages/Staff";
+const Staff = lazy(() =>
+  import("./pages/Staff").then((module) => ({ default: module.Staff })),
+);
 import { Account } from "./pages/Account";
 import { AccountAction } from "./pages/AccountAction";
 import { Notifications } from "./pages/Notifications";
@@ -26,6 +29,8 @@ import "./styles/management.css";
 import "./styles/v24.css";
 import "./styles/v25.css";
 import "./styles/v26.css";
+import "./styles/v27.css";
+const Driver = lazy(() => import("./pages/Driver"));
 const PrintJobPreview = lazy(() =>
   import("./pages/PrintingPanel").then((module) => ({
     default: module.PrintJobPreview,
@@ -68,7 +73,22 @@ function App() {
             }
           />
         </Route>
-        <Route path="staff" element={<Staff />} />
+        <Route
+          path="driver"
+          element={
+            <Suspense fallback={<p>Opening delivery link…</p>}>
+              <Driver />
+            </Suspense>
+          }
+        />
+        <Route
+          path="staff"
+          element={
+            <Suspense fallback={<p>Opening staff workspace…</p>}>
+              <Staff />
+            </Suspense>
+          }
+        />
         <Route
           path="staff/print/:id"
           element={
@@ -92,6 +112,7 @@ function App() {
     </AppProvider>
   );
 }
+await initializeBranch();
 createRoot(document.getElementById("root")).render(
   <BrowserRouter>
     <App />

@@ -1865,9 +1865,10 @@ export function EventsPanel({ notify, onRefresh }) {
                 </p>
                 <p>
                   <Table2 size={15} />
-                  {event.spaceId === "dining-room"
-                    ? "Full dining room"
-                    : "Family corner"}{" "}
+                  {event.space?.name ||
+                    (event.spaceId === "dining-room"
+                      ? "Full dining room"
+                      : "Family corner")}{" "}
                   · {event.type}
                 </p>
                 <p>
@@ -2001,14 +2002,18 @@ export function EventsPanel({ notify, onRefresh }) {
 function QuoteEditor({ event, onClose, onDone }) {
   const { money } = useApp();
   const [values, setValues] = useState({
-    hallFee: event.quote?.hallFee || 0,
-    perGuest: event.quote?.perGuest || 550,
+    hallFee: event.quote?.hallFee ?? event.package?.hallFee ?? 0,
+    perGuest: event.quote?.perGuest ?? event.package?.perGuest ?? 550,
     extras: event.quote?.extras || 0,
-    depositPercent: event.quote?.depositPercent || 0,
+    depositPercent:
+      event.quote?.depositPercent ?? event.package?.depositPercent ?? 0,
     terms:
       event.quote?.terms ||
       "Please confirm the final guest count at least 48 hours before the event. Contact our team for any changes.",
-    menu: event.quote?.menu || "Kacchi, kebab, borhani and phirni.",
+    menu:
+      event.quote?.menu ||
+      event.package?.description ||
+      "Kacchi, kebab, borhani and phirni.",
     validHours: 48,
   });
   const [busy, setBusy] = useState(false);

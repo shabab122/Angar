@@ -1,3 +1,4 @@
+import { assertApprovalLimit } from "./access.js";
 import { randomBytes } from "node:crypto";
 import { recordCash } from "./cash-drawer.js";
 import { z } from "zod";
@@ -502,6 +503,14 @@ export function registerRefunds(
         { session },
       );
       if (!row) throw new HttpError(404, "NOT_FOUND", "Refund not found.");
+      if (input.decision === "approve")
+        await assertApprovalLimit(
+          store,
+          req.staff,
+          "refundApproval",
+          row.amountMinor,
+          session,
+        );
       const status = input.decision === "approve" ? "approved" : "rejected";
       if (row.status === status) return row;
       if (row.status !== "requested")

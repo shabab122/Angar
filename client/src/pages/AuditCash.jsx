@@ -1,3 +1,4 @@
+import { branchUrl } from "../lib/branch";
 import { useState } from "react";
 import { Download, RefreshCw, ShieldCheck, Wallet } from "lucide-react";
 import { useApp } from "../lib/AppContext";
@@ -105,7 +106,9 @@ export function AuditDashboard() {
           <Button type="submit">Apply activity filters</Button>
           <a
             className="button button-secondary"
-            href={"/api/staff/audit/export.csv?" + new URLSearchParams(filters)}
+            href={branchUrl(
+              "/api/staff/audit/export.csv?" + new URLSearchParams(filters),
+            )}
           >
             <Download size={15} />
             Export filtered CSV
@@ -274,7 +277,7 @@ function CashShiftDetails({ id, onClose }) {
           )}
           <a
             className="button button-secondary"
-            href={"/api/staff/cash-drawer/" + id + "/export.csv"}
+            href={branchUrl("/api/staff/cash-drawer/" + id + "/export.csv")}
           >
             <Download size={15} />
             Download shift CSV

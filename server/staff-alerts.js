@@ -1,3 +1,4 @@
+import { branchPath } from "./branches.js";
 import { z } from "zod";
 import { body, HttpError } from "./http.js";
 import { stockDay } from "./ingredient-batches.js";
@@ -206,7 +207,7 @@ export async function runStaffAlertDeliveries(store, config) {
         alerts.map((a) => a.title + "\n" + a.detail).join("\n\n") +
         "\n\nReview current conditions in the staff workspace: " +
         config.origin +
-        "/staff",
+        branchPath("/staff", config.branchId),
     });
     await store.staffAlertDeliveries.updateOne(
       { _id: row._id },

@@ -1,3 +1,5 @@
+import { Drafts } from "./Drafts";
+import { branchStorage } from "../lib/branch";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -199,10 +201,7 @@ function DishDetails({ dish }) {
                     <small>
                       {review.sample
                         ? t("Sample review", "নমুনা রিভিউ")
-                        : t(
-                            "Verified served order",
-                            "যাচাইকৃত পরিবেশিত অর্ডার",
-                          )}
+                        : t("Verified served order", "যাচাইকৃত পরিবেশিত অর্ডার")}
                     </small>
                   </div>
                   <span className="review-stars">
@@ -291,6 +290,8 @@ export function CartDrawer() {
   const available =
     pricedLines.length > 0 && pricedLines.every((line) => line.valid);
   const canOrder =
+    app.online &&
+    !app.menuCached &&
     table?.active &&
     table.billingState !== "finalized" &&
     restaurant?.orderingEnabled !== false &&
@@ -319,9 +320,9 @@ export function CartDrawer() {
       note: note.trim(),
     };
     const signature = JSON.stringify(data);
-    const old = readStorage("angar.checkout.v2", null, true);
+    const old = readStorage(branchStorage("angar.checkout.v2"), null, true);
     const key = old?.signature === signature ? old.key : requestKey();
-    saveStorage("angar.checkout.v2", { signature, key }, true);
+    saveStorage(branchStorage("angar.checkout.v2"), { signature, key }, true);
     setBusy(true);
     setError("");
     try {
@@ -332,7 +333,7 @@ export function CartDrawer() {
       });
       app.clearCart();
       setCartOpen(false);
-      saveStorage("angar.checkout.v2", null, true);
+      saveStorage(branchStorage("angar.checkout.v2"), null, true);
       notify(
         t(
           "Order received. Your table is in good hands.",
@@ -373,13 +374,11 @@ export function CartDrawer() {
       title={t("A little something good", "আপনার পছন্দের খাবার")}
       className="cart-drawer"
     >
+      <Drafts />
       {!count ? (
         <EmptyState
           icon={ShoppingBag}
-          title={t(
-            "Your next craving awaits.",
-            "কার্টে পছন্দের খাবার যোগ করুন।",
-          )}
+          title={t("Your next craving awaits.", "কার্টে পছন্দের খাবার যোগ করুন।")}
           text={t(
             "Start with a house favourite and make it a meal.",
             "একটি পছন্দের খাবার দিয়ে শুরু করুন।",

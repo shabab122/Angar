@@ -1,3 +1,4 @@
+import { branchUrl } from "../lib/branch";
 import { useEffect, useState } from "react";
 import { DatabaseBackup, Download, ShieldCheck } from "lucide-react";
 import { useApp } from "../lib/AppContext";
@@ -175,7 +176,7 @@ export function BackupsPanel() {
               <div className="commerce-inline-actions">
                 <a
                   className="button button-secondary button-small"
-                  href={"/api/staff/backups/" + job.id + "/download"}
+                  href={branchUrl("/api/staff/backups/" + job.id + "/download")}
                 >
                   <Download size={14} />
                   Download encrypted backup

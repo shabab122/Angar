@@ -77,6 +77,7 @@ export async function lockDining(store, session) {
 export async function assertNoPrivateEvent(store, start, end, session) {
   const event = await store.events.findOne(
     {
+      "space.blocksDining": { $ne: false },
       startsAt: { $lt: end },
       blockedUntil: { $gt: start },
       $or: [

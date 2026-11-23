@@ -1,13 +1,22 @@
 import { MongoClient } from "mongodb";
 
-export async function connectDatabase(config) {
-  const client = new MongoClient(config.mongoUri, {
-    serverSelectionTimeoutMS: 6000,
-  });
+export async function connectDatabase(config, sharedClient = null) {
+  const client =
+    sharedClient ||
+    new MongoClient(config.mongoUri, {
+      serverSelectionTimeoutMS: 6000,
+    });
   try {
-    await client.connect();
+    if (!sharedClient) await client.connect();
     const db = client.db(config.mongoDatabase);
+    const identityDb = client.db(
+      config.identityDatabase || config.mongoDatabase,
+    );
     const collections = {
+      courierJobs: db.collection("courierJobs"),
+      courierWebhookEvents: db.collection("courierWebhookEvents"),
+      branches: identityDb.collection("branches"),
+      identitySettings: identityDb.collection("identitySettings"),
       stocktakes: db.collection("stocktakes"),
       inventoryConsumptions: db.collection("inventoryConsumptions"),
       supplierReturns: db.collection("supplierReturns"),
@@ -21,8 +30,8 @@ export async function connectDatabase(config) {
       tables: db.collection("tables"),
       orders: db.collection("orders"),
       reviews: db.collection("reviews"),
-      staff: db.collection("staff"),
-      sessions: db.collection("staffSessions"),
+      staff: identityDb.collection("staff"),
+      sessions: identityDb.collection("staffSessions"),
       settings: db.collection("settings"),
       backupJobs: db.collection("backupJobs"),
       runtimeLeases: db.collection("runtimeLeases"),
@@ -35,8 +44,8 @@ export async function connectDatabase(config) {
       fulfillments: db.collection("fulfillments"),
       bills: db.collection("bills"),
       audit: db.collection("auditLog"),
-      staffMfaChallenges: db.collection("staffMfaChallenges"),
-      staffMfaEnrollments: db.collection("staffMfaEnrollments"),
+      staffMfaChallenges: identityDb.collection("staffMfaChallenges"),
+      staffMfaEnrollments: identityDb.collection("staffMfaEnrollments"),
       backupSyncJobs: db.collection("backupSyncJobs"),
       cashRegisters: db.collection("cashRegisters"),
       cashShifts: db.collection("cashShifts"),
@@ -298,9 +307,39 @@ export async function connectDatabase(config) {
         },
         { upsert: true },
       );
-    return { client, db, ...collections };
+    await collections.courierJobs.createIndex(
+      { reference: 1 },
+      {
+        unique: true,
+        partialFilterExpression: { reference: { $type: "string" } },
+      },
+    );
+    await collections.courierWebhookEvents.createIndex(
+      { expiresAt: 1 },
+      { expireAfterSeconds: 0 },
+    );
+    await collections.branches.createIndex(
+      { requestKey: 1 },
+      {
+        unique: true,
+        partialFilterExpression: { requestKey: { $type: "string" } },
+      },
+    );
+    for (const id of ["branch-setup-lock", "staff-access-lock"])
+      await collections.identitySettings.updateOne(
+        { _id: id },
+        { $setOnInsert: { revision: 0 } },
+        { upsert: true },
+      );
+    return {
+      client,
+      db,
+      identityDb,
+      branchId: config.branchId || "main",
+      ...collections,
+    };
   } catch (error) {
-    await client.close();
+    if (!sharedClient) await client.close();
     throw error;
   }
 }

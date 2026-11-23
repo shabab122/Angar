@@ -1,3 +1,4 @@
+import { hasBranchAccess, assertManageStaff } from "./access.js";
 import {
   createCipheriv,
   createDecipheriv,
@@ -26,11 +27,12 @@ const pendingCookie = "angar_staff_pending",
 const keyReady = (config) => /^[a-f0-9]{64}$/i.test(config.staffMfa?.key || "");
 export const staffPayload = (user, config) => ({
   ...staffIdentity(user),
+  branchId: config.branchId || "main",
   mfaEnabled: Boolean(user.mfa?.enabled),
   mfaSetupRequired: Boolean(
     config.staffMfa?.requireAdmin &&
-      user.role === "admin" &&
-      !user.mfa?.enabled,
+    user.role === "admin" &&
+    !user.mfa?.enabled,
   ),
 });
 function encrypt(config, staffId, secret) {
@@ -215,6 +217,12 @@ export async function issueStaffSession(
       "STAFF_REQUIRED",
       "Your access changed. Sign in again.",
     );
+  if (!hasBranchAccess(actual, store.branchId || "main"))
+    throw new HttpError(
+      403,
+      "BRANCH_FORBIDDEN",
+      "Your branch access changed. Choose an assigned branch.",
+    );
   const previous = req.cookies[STAFF_COOKIE];
   if (sessionToken(previous))
     await store.sessions.deleteOne({ _id: hash(previous) }, { session });
@@ -242,6 +250,12 @@ export async function issueStaffSession(
   return staffPayload(actual, config);
 }
 export async function beginStaffLogin(store, config, req, res, user) {
+  if (!hasBranchAccess(user, store.branchId || "main"))
+    throw new HttpError(
+      403,
+      "BRANCH_FORBIDDEN",
+      "This account is not assigned to the selected branch.",
+    );
   if (!user.mfa?.enabled)
     return res.json(await issueStaffSession(store, config, req, res, user));
   const old = req.cookies[STAFF_COOKIE];
@@ -633,6 +647,10 @@ export function registerStaffMfa(api, store, config, requireAdmin, requireId) {
         );
         if (checked.failed) return checked;
       }
+      const existing = await store.staff.findOne({ _id: id }, { session });
+      if (!existing)
+        throw new HttpError(404, "NOT_FOUND", "Staff account not found.");
+      assertManageStaff(admin, existing, store.branchId);
       const target = await store.staff.findOneAndUpdate(
         { _id: id, username: input.confirmUsername, "mfa.enabled": true },
         {

@@ -1,3 +1,4 @@
+import { currentBranch, branchChanged } from "./branch";
 export class ApiError extends Error {
   constructor(status, code, message) {
     super(message);
@@ -18,6 +19,7 @@ export async function api(
       signal: AbortSignal.timeout(15000),
       headers: {
         Accept: "application/json",
+        "X-Angar-Branch": currentBranch(),
         ...(data !== undefined || image
           ? { "Content-Type": image ? image.type : "application/json" }
           : {}),
@@ -38,12 +40,14 @@ export async function api(
   }
   if (response.status === 204) return null;
   const result = await response.json().catch(() => null);
+  if (result?.error?.code === "BRANCH_CHANGED") branchChanged();
   if (!response.ok || !result)
     throw new ApiError(
       response.status,
       result?.error?.code || "SERVER_ERROR",
       result?.error?.message || "Something went wrong. Please try again.",
     );
+  if (response.headers.get("X-Angar-Offline") === "1") result._offline = true;
   return result;
 }
 
@@ -130,3 +134,13 @@ export const statusBn = {
   notified: "স্টাফ ডেকেছেন",
   no_show: "উপস্থিত হননি",
 };
+
+export function parseMinor(value) {
+  const text = String(value ?? "");
+  if (!/^\d+(?:\.\d{1,2})?$/.test(text))
+    throw new Error("Use an amount with at most two decimal places.");
+  const [whole, part = ""] = text.split(".");
+  const result = Number(whole) * 100 + Number(part.padEnd(2, "0"));
+  if (!Number.isSafeInteger(result)) throw new Error("Amount is too large.");
+  return result;
+}

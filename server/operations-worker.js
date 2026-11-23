@@ -1,3 +1,4 @@
+import { expireCourierTracking } from "./courier.js";
 import { runPrintJobs } from "./printing.js";
 import { scanStaffAlerts, runStaffAlertDeliveries } from "./staff-alerts.js";
 import { runBackupJobs } from "./backups.js";
@@ -5,6 +6,7 @@ import { runCloudBackupJobs } from "./backup-cloud.js";
 export function startOperationsWorker(store, config, extra = async () => {}) {
   let stopped = false;
   const tasks = [
+    () => expireCourierTracking(store),
     () => runBackupJobs(store, config),
     () => runCloudBackupJobs(store, config),
     () => runPrintJobs(store, config),

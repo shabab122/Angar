@@ -1,3 +1,4 @@
+import { assertApprovalLimit } from "./access.js";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { body, HttpError } from "./http.js";
@@ -342,6 +343,14 @@ export function registerFinance(
           409,
           "EXPENSE_UPDATED",
           "Only an unchanged pending expense, or an unpaid expense for cancellation, can make this transition.",
+        );
+      if (input.decision === "approve")
+        await assertApprovalLimit(
+          store,
+          req.staff,
+          "expenseApproval",
+          row.amountMinor,
+          session,
         );
       await store.audit.insertOne(
         {

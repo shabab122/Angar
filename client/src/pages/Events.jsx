@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -28,6 +28,30 @@ export function Events() {
     packageId: "dhaka-table",
     note: "",
   });
+  useEffect(() => {
+    if (!options.data) return;
+    setValues((old) => {
+      const space =
+          options.data.spaces.find((row) => row.id === old.spaceId) ||
+          options.data.spaces[0],
+        packageRow =
+          options.data.packages.find((row) => row.id === old.packageId) ||
+          options.data.packages[0];
+      if (!space || !packageRow) return old;
+      return {
+        ...old,
+        spaceId: space.id,
+        packageId: packageRow.id,
+        guests: Math.min(
+          space.capacity,
+          Math.max(space.minGuests || 1, old.guests),
+        ),
+      };
+    });
+  }, [options.data]);
+  const selectedSpace = options.data?.spaces.find(
+    (row) => row.id === values.spaceId,
+  );
   const [key, setKey] = useState(requestKey);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -47,7 +71,11 @@ export function Events() {
     try {
       await api("/events", {
         method: "POST",
-        data: { ...values, requestKey: key },
+        data: {
+          ...values,
+          requestKey: key,
+          expectedConfigRevision: options.data?.revision,
+        },
       });
       setKey(requestKey());
       navigate("/orders?tab=events");
@@ -163,12 +191,12 @@ export function Events() {
                 <p>{item.description}</p>
                 <div>
                   <strong>
-                    {item.perGuest
+                    {item.perGuest !== null
                       ? money(item.perGuest)
                       : t("Let’s talk", "আলোচনা করুন")}
                   </strong>
                   <small>
-                    {item.perGuest
+                    {item.perGuest !== null
                       ? t("starting / guest", "থেকে / জন")
                       : t("A tailored menu", "আপনার পছন্দের মেনু")}
                   </small>
@@ -275,8 +303,8 @@ export function Events() {
                 type="number"
                 name="guests"
                 required
-                min="8"
-                max={values.spaceId === "family-corner" ? 20 : 60}
+                min={selectedSpace?.minGuests || 1}
+                max={selectedSpace?.capacity || 60}
                 value={values.guests}
                 onChange={change}
               />
@@ -322,18 +350,12 @@ export function Events() {
           <label>
             {t("Your space", "পছন্দের স্পেস")}
             <select name="spaceId" value={values.spaceId} onChange={change}>
-              <option value="family-corner">
-                {t(
-                  "The family corner · up to 20 guests",
-                  "ফ্যামিলি কর্নার · সর্বোচ্চ ২০ জন",
-                )}
-              </option>
-              <option value="dining-room">
-                {t(
-                  "The dining room · up to 60 guests",
-                  "পুরো ডাইনিং রুম · সর্বোচ্চ ৬০ জন",
-                )}
-              </option>
+              {(options.data?.spaces || []).map((space) => (
+                <option key={space.id} value={space.id}>
+                  {space.name} · {t("up to", "সর্বোচ্চ")} {space.capacity}{" "}
+                  {t("guests", "জন")}
+                </option>
+              ))}
             </select>
           </label>
           <label>
