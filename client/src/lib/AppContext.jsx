@@ -1,3 +1,5 @@
+import { safeDraftLines } from "./draft-data";
+import { branchStorage, currentBranch } from "./branch";
 import {
   createContext,
   useCallback,
@@ -19,18 +21,9 @@ export const categories = [
 export const lineKey = (id, variantId = "", addons = []) =>
   [id, variantId, [...addons].sort().join(",")].join("|");
 function initialCart() {
-  const saved = readStorage("angar.cart.v2", null);
-  if (Array.isArray(saved))
-    return saved
-      .filter(
-        (line) =>
-          typeof line.dishId === "string" &&
-          Number.isInteger(line.quantity) &&
-          line.quantity > 0 &&
-          line.quantity <= 10,
-      )
-      .slice(0, 12);
-  const previous = readStorage("angar.cart.v1", {});
+  const saved = readStorage(branchStorage("angar.cart.v2"), null);
+  if (Array.isArray(saved)) return safeDraftLines(saved);
+  const previous = readStorage(branchStorage("angar.cart.v1"), {});
   return Object.entries(previous.cart || {})
     .filter(
       ([, quantity]) =>
@@ -49,18 +42,24 @@ export function AppProvider({ children }) {
   const [language, setLanguage] = useState(() =>
     readStorage("angar.language", "en") === "bn" ? "bn" : "en",
   );
+  const [online, setOnline] = useState(navigator.onLine);
+  const [branchConflict, setBranchConflict] = useState(false);
   const [menu, setMenu] = useState([]);
   const [menuError, setMenuError] = useState(null);
   const [menuLoading, setMenuLoading] = useState(true);
+  const [menuCached, setMenuCached] = useState(false);
   const [restaurant, setRestaurant] = useState(null);
   const [table, setTable] = useState(null);
   const [contextReady, setContextReady] = useState(false);
   const [cart, setCart] = useState(initialCart);
   const [note, setNote] = useState(() =>
-    readStorage("angar.note.v2", readStorage("angar.cart.v1", {}).note || ""),
+    readStorage(
+      branchStorage("angar.note.v2"),
+      readStorage(branchStorage("angar.cart.v1"), {}).note || "",
+    ),
   );
   const [favourites, setFavourites] = useState(() =>
-    readStorage("angar.favourites", []),
+    readStorage(branchStorage("angar.favourites"), []),
   );
   const [cartOpen, setCartOpen] = useState(false);
   const [dishId, setDishId] = useState(null);
@@ -74,6 +73,7 @@ export function AppProvider({ children }) {
     try {
       const result = await api("/menu");
       setMenu(result.dishes);
+      setMenuCached(Boolean(result._offline));
       setMenuError(null);
     } catch (failure) {
       setMenuError(failure.message);
@@ -83,7 +83,14 @@ export function AppProvider({ children }) {
   }, []);
   const reloadContext = useCallback(async () => {
     try {
+      if (!navigator.onLine) {
+        setTable(null);
+        return;
+      }
       setTable((await api("/context")).table);
+    } catch (error) {
+      setTable(null);
+      throw error;
     } finally {
       setContextReady(true);
     }
@@ -136,13 +143,41 @@ export function AppProvider({ children }) {
     };
   }, [reloadMenu, reloadContext, reloadRestaurant]);
   useEffect(() => {
-    saveStorage("angar.cart.v2", cart);
+    const connected = () => {
+      setOnline(navigator.onLine);
+      void reloadContext().catch(() => {});
+      void reloadMenu();
+      void reloadRestaurant().catch(() => {});
+    };
+    const disconnected = () => {
+      setOnline(false);
+      setTable(null);
+    };
+    const conflict = () => setBranchConflict(true);
+    const storage = (event) => {
+      if (event.key === "angar.branchChanged") conflict();
+    };
+    window.addEventListener("angar:catalog-ready", connected);
+    window.addEventListener("online", connected);
+    window.addEventListener("offline", disconnected);
+    window.addEventListener("angar:branch-changed", conflict);
+    window.addEventListener("storage", storage);
+    return () => {
+      window.removeEventListener("angar:catalog-ready", connected);
+      window.removeEventListener("online", connected);
+      window.removeEventListener("offline", disconnected);
+      window.removeEventListener("angar:branch-changed", conflict);
+      window.removeEventListener("storage", storage);
+    };
+  }, [reloadContext, reloadMenu, reloadRestaurant]);
+  useEffect(() => {
+    saveStorage(branchStorage("angar.cart.v2"), cart);
   }, [cart]);
   useEffect(() => {
-    saveStorage("angar.note.v2", note);
+    saveStorage(branchStorage("angar.note.v2"), note);
   }, [note]);
   useEffect(() => {
-    saveStorage("angar.favourites", favourites);
+    saveStorage(branchStorage("angar.favourites"), favourites);
   }, [favourites]);
   useEffect(() => {
     saveStorage("angar.language", language);
@@ -258,7 +293,7 @@ export function AppProvider({ children }) {
   function clearCart() {
     setCart([]);
     setNote("");
-    saveStorage("angar.cart.v1", null);
+    saveStorage(branchStorage("angar.cart.v1"), null);
   }
   function toggleFavourite(id) {
     setFavourites((previous) =>
@@ -271,6 +306,8 @@ export function AppProvider({ children }) {
     <AppContext.Provider
       value={{
         language,
+        online,
+        branchId: currentBranch(),
         setLanguage,
         customer,
         customerReady,
@@ -294,6 +331,7 @@ export function AppProvider({ children }) {
         money: (value) => money(value, language),
         menu,
         menuLoading,
+        menuCached,
         menuError,
         reloadMenu,
         restaurant,
@@ -322,6 +360,33 @@ export function AppProvider({ children }) {
       }}
     >
       {children}
+      {!online && (
+        <div className="network-banner" role="status">
+          Offline · saved menu and cart drafts only. Reconnect to order or pay.
+        </div>
+      )}
+      {branchConflict && (
+        <div
+          className="branch-conflict"
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Branch changed"
+        >
+          <div>
+            <h2>Restaurant branch changed</h2>
+            <p>
+              Reload this page to use the branch selected in another tab. Your
+              cart is saved with its original branch.
+            </p>
+            <button
+              className="button button-primary"
+              onClick={() => window.location.reload()}
+            >
+              Reload selected branch
+            </button>
+          </div>
+        </div>
+      )}
       {toast && (
         <div className="toast" role="status">
           {toast}

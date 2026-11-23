@@ -1,3 +1,4 @@
+import { branchUrl } from "../lib/branch";
 import { useState } from "react";
 import { api, dhakaTime, localDate, requestKey } from "../lib/api";
 import { useResource } from "../lib/useResource";
@@ -251,7 +252,7 @@ export default function FinancePanel({ user }) {
               </div>
               <a
                 className="button button-secondary"
-                href={"/api/staff/finance/profit.csv?" + query}
+                href={branchUrl("/api/staff/finance/profit.csv?" + query)}
               >
                 Export operating result CSV
               </a>

@@ -1,3 +1,4 @@
+import { assertApprovalLimit } from "./access.js";
 import { moveInventoryValue } from "./inventory-cost.js";
 import { ObjectId } from "mongodb";
 import { randomBytes } from "node:crypto";
@@ -95,9 +96,9 @@ export const purchaseView = (row) => ({
   dueOn: row.dueOn,
   overdue: Boolean(
     row.dueOn &&
-      row.dueOn < stockDay() &&
-      row.receivedMinor - (row.returnedMinor || 0) >
-        row.paidMinor - (row.supplierRefundMinor || 0),
+    row.dueOn < stockDay() &&
+    row.receivedMinor - (row.returnedMinor || 0) >
+      row.paidMinor - (row.supplierRefundMinor || 0),
   ),
   notes: row.notes,
   revision: row.revision || 0,
@@ -467,6 +468,14 @@ export function registerPurchasing(
           "SUPPLIER_REQUIRED",
           "Reactivate the supplier before confirming a new purchase order.",
         );
+      if (input.action === "order")
+        await assertApprovalLimit(
+          store,
+          req.staff,
+          "purchaseApproval",
+          previous.orderedMinor,
+          session,
+        );
       const status = input.action === "order" ? "ordered" : "cancelled",
         entry = {
           status,
@@ -725,6 +734,13 @@ export function registerPurchasing(
           );
         return store.purchases.findOne({ _id: purchaseId }, { session });
       }
+      await assertApprovalLimit(
+        store,
+        req.staff,
+        "purchasePayment",
+        input.amountMinor,
+        session,
+      );
       const row = await store.purchases.findOneAndUpdate(
         { _id: purchaseId },
         { $inc: { revision: 1 } },

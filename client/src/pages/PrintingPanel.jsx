@@ -1,3 +1,4 @@
+import { branchUrl } from "../lib/branch";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, dhakaTime, requestKey } from "../lib/api";
@@ -152,7 +153,7 @@ export default function PrintingPanel({ user }) {
                     className="button button-secondary button-small"
                     target="_blank"
                     rel="noreferrer"
-                    href={"/staff/print/" + job.id}
+                    href={branchUrl("/staff/print/" + job.id)}
                   >
                     Open thermal print preview
                   </a>

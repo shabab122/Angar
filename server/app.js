@@ -1,3 +1,7 @@
+import { registerCourierCallback } from "./courier.js";
+import { registerLive } from "./live.js";
+export { createApp } from "./branch-router.js";
+import { hasBranchAccess, enforcePermissions } from "./access.js";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import cookieParser from "cookie-parser";
@@ -94,7 +98,7 @@ const tableView = (table) => ({
   visitKey: table.activeVisitId ? tableVisitKey(table.activeVisitId) : null,
 });
 
-export function createApp(store, config, frontendMiddleware) {
+export function createBranchApp(store, config, frontendMiddleware) {
   const { db, tables, orders, dishes, reviews, staff, sessions } = store;
   const app = express();
   app.disable("x-powered-by");
@@ -114,6 +118,7 @@ export function createApp(store, config, frontendMiddleware) {
   );
   app.use(cookieParser(config.cookieSecret));
   registerGatewayCallbacks(app, store, config);
+  registerCourierCallback(app, store, config);
 
   app.get("/healthz", async (req, res) => {
     await db.command({ ping: 1 });
@@ -144,7 +149,7 @@ export function createApp(store, config, frontendMiddleware) {
   const api = express.Router();
   api.use((req, res, next) => {
     res.set("Cache-Control", "no-store");
-    if (["POST", "PATCH", "DELETE"].includes(req.method)) {
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
       if (req.get("origin") !== config.origin)
         throw new HttpError(
           403,
@@ -354,6 +359,12 @@ export function createApp(store, config, frontendMiddleware) {
         "STAFF_REQUIRED",
         "Sign in to the staff workspace.",
       );
+    if (!hasBranchAccess(user, store.branchId || "main"))
+      throw new HttpError(
+        403,
+        "BRANCH_FORBIDDEN",
+        "Your staff account is not assigned to this branch.",
+      );
     req.staff = user;
     if (
       staffPayload(user, config).mfaSetupRequired &&
@@ -411,6 +422,8 @@ export function createApp(store, config, frontendMiddleware) {
     res.status(204).end();
   });
   staffApi.use(requireStaff);
+  staffApi.use(enforcePermissions);
+  app.stopLive = registerLive(staffApi, store);
   staffApi.get("/me", (req, res) => res.json(staffPayload(req.staff, config)));
   staffApi.get("/orders", async (req, res) => {
     const role = req.staff.role;
@@ -608,6 +621,10 @@ export function createApp(store, config, frontendMiddleware) {
     app.use(
       express.static(publicDir, {
         index: false,
+        setHeaders: (res, file) => {
+          if (file.endsWith("/sw.js") || file.endsWith("/manifest.webmanifest"))
+            res.set("Cache-Control", "no-cache");
+        },
         maxAge: config.production ? "1h" : 0,
       }),
     );
@@ -619,6 +636,7 @@ export function createApp(store, config, frontendMiddleware) {
         "/about",
         "/events",
         "/staff",
+        "/driver",
         "/staff/print/:id",
         "/staff/receipt/:id/thermal",
         "/account",

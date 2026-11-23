@@ -82,6 +82,12 @@ export function loadConfig(env = process.env) {
       "SSLCOMMERZ_PUBLIC_ORIGIN must be a public HTTPS origin without a path.",
     );
   return {
+    courier: {
+      name: env.COURIER_NAME || "Configured courier",
+      url: env.COURIER_API_URL || "",
+      token: env.COURIER_API_TOKEN || "",
+      webhookSecret: env.COURIER_WEBHOOK_SECRET || "",
+    },
     kitchenPrinter: {
       host: env.KITCHEN_PRINTER_HOST || "",
       port: Number(env.KITCHEN_PRINTER_PORT || 9100),

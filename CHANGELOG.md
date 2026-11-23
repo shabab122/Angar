@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.7.0
+
+Base: `Angar_Kitchen_React_v2.6.zip`. Existing design/assets, technology stack, table QR ordering, payment/refund rules, staff MFA, purchasing, inventory, reports, printing and backups are retained.
+
+- Added versioned event configuration, active/archive spaces and packages, capacities, shared room resources, suggested pricing and deposit settings. Held bookings protect their resources and capacity; issued quotes retain agreed totals.
+- Added authenticated per-branch SSE invalidations from MongoDB change streams, heartbeat/access rechecks, reconnect resync and polling fallback. Streams contain topic labels, not order documents or customer details.
+- Added configurable courier booking/status/cancellation, stable provider references, unknown-result preservation, timestamped HMAC webhooks and duplicate-event protection. Provider delivery reports require reviewed handover and never credit a bill.
+- Added private expiring staff-driver links, permission-based GPS, fresh position validation, customer-only delivery codes, bounded confirmation attempts and paid-bill delivery confirmation. Existing manual dispatch remains available.
+- Added role-bounded action restrictions and transactional refund/purchase/expense amount limits, branch assignments, permission-aware navigation and session revocation. Restricted administrators cannot manage broader accounts or delegate larger limits.
+- Added isolated business databases per branch, shared staff authentication, branch-aware QR/payment/account/notification links, separate invoice series, branch workers and scoped backup/restore tooling. Legacy business data stays in `main`; new ordering starts paused.
+- Added a PWA manifest/icons, versioned public shell/catalogue cache, explicit branch-specific offline cart drafts, online price/context review and opt-in app updates. Private APIs, addresses, credentials and financial writes are not cached or replayed.
+- Added automated branch/access, event/live and courier tests. No new runtime dependencies.
+
 ## 2.6.0
 
 Base: `Angar_Kitchen_React_v2.5.zip`. Existing restaurant design/assets, guest QR ordering, bills/refunds, accounts, staff MFA, reservations, pickup/delivery, notifications, batch inventory and encrypted/cloud backups are retained.

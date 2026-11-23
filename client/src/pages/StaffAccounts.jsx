@@ -1,4 +1,5 @@
-import { useState } from "react";
+const StaffPermissions = lazy(() => import("./StaffPermissions"));
+import { lazy, Suspense, useState } from "react";
 import { LockKeyhole, UserPlus, UsersRound } from "lucide-react";
 import { useApp } from "../lib/AppContext";
 import { api, dhakaTime } from "../lib/api";
@@ -133,6 +134,7 @@ export function StaffPassword({ required = false, onSignedOut }) {
 export function StaffAccounts({ user: currentUser }) {
   const { notify } = useApp();
   const resource = useResource("/staff/team", { interval: 15000 });
+  const [permissionTarget, setPermissionTarget] = useState(null);
   const [mfaReset, setMfaReset] = useState(null);
   const [action, setAction] = useState(null),
     [busy, setBusy] = useState(false),
@@ -262,7 +264,21 @@ export function StaffAccounts({ user: currentUser }) {
                 ? "Last sign in: " + dhakaTime(user.lastLoginAt)
                 : "No recorded sign in yet."}
             </p>
+            <p className="commerce-note">
+              Branches: {(user.branchIds || ["main"]).join(", ")} · Restricted
+              actions: {user.denied?.length || 0}
+            </p>
             <div className="commerce-inline-actions">
+              {currentUser?.platformAdmin &&
+                user.username !== currentUser.username && (
+                  <Button
+                    secondary
+                    className="button-small"
+                    onClick={() => setPermissionTarget(user)}
+                  >
+                    Permissions & limits
+                  </Button>
+                )}
               <Button
                 secondary
                 className="button-small"
@@ -290,6 +306,19 @@ export function StaffAccounts({ user: currentUser }) {
           </article>
         ))}
       </div>
+      {permissionTarget && (
+        <Suspense fallback={<Loading />}>
+          <StaffPermissions
+            target={permissionTarget}
+            onClose={() => setPermissionTarget(null)}
+            onDone={() => {
+              setPermissionTarget(null);
+              void resource.reload();
+              notify("Staff permissions saved; old sessions were revoked.");
+            }}
+          />
+        </Suspense>
+      )}
       {mfaReset && (
         <MfaResetDialog
           target={mfaReset}

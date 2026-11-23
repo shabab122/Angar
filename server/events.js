@@ -4,42 +4,13 @@ import { z } from "zod";
 import { body, HttpError } from "./http.js";
 import { getGuest, randomToken } from "./security.js";
 
-export const eventOptions = {
-  spaces: [
-    {
-      id: "dining-room",
-      name: "The dining room",
-      capacity: 60,
-      description: "A private gathering across the full dining room.",
-    },
-    {
-      id: "family-corner",
-      name: "The family corner",
-      capacity: 20,
-      description: "An intimate section within our dining room.",
-    },
-  ],
-  packages: [
-    {
-      id: "dhaka-table",
-      name: "The Dhaka Table",
-      perGuest: 550,
-      description: "Kacchi, kebab, borhani and phirni.",
-    },
-    {
-      id: "charcoal-evening",
-      name: "A Charcoal Evening",
-      perGuest: 650,
-      description: "Grilled chicken, seekh kebab, rice and dessert.",
-    },
-    {
-      id: "your-menu",
-      name: "Make it yours",
-      perGuest: null,
-      description: "Talk to our team about a menu for your guests.",
-    },
-  ],
-};
+import { eventOptions } from "./event-defaults.js";
+import {
+  readEventConfiguration,
+  registerEventConfiguration,
+  spaceSnapshot,
+} from "./event-config.js";
+export { eventOptions } from "./event-defaults.js";
 const eventInput = z.strictObject({
   requestKey: z.string().regex(/^[a-f0-9]{32}$/),
   name: z.string().trim().min(2).max(70),
@@ -56,9 +27,10 @@ const eventInput = z.strictObject({
       "Select a time between 12:00 and 21:59.",
     ),
   hours: z.number().int().min(1).max(5),
-  guests: z.number().int().min(8).max(60),
-  spaceId: z.enum(["dining-room", "family-corner"]),
-  packageId: z.enum(["dhaka-table", "charcoal-evening", "your-menu"]),
+  guests: z.number().int().min(1).max(500),
+  spaceId: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/),
+  packageId: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/),
+  expectedConfigRevision: z.number().int().min(0).optional(),
   note: z.string().trim().max(600).default(""),
 });
 const quoteInput = z.strictObject({
@@ -103,6 +75,17 @@ export function eventView(event, staff = false) {
     createdAt,
     note,
     history,
+    space:
+      event.space ||
+      spaceSnapshot(
+        eventOptions.spaces.find((s) => s.id === event.spaceId) || {
+          id: event.spaceId,
+          name: event.spaceId,
+          capacity: 60,
+        },
+      ),
+    package: event.package || null,
+    configRevision: event.configRevision || 0,
     ...(staff ? { phone: event.phone } : {}),
     depositReceived: event.depositReceived || 0,
     depositRefundedMinor: event.depositRefundedMinor || 0,
@@ -116,6 +99,16 @@ async function assertSlot(store, event, session) {
     { $inc: { revision: 1 } },
     { session, upsert: true },
   );
+  const held =
+    event.space ||
+    spaceSnapshot(
+      eventOptions.spaces.find((s) => s.id === event.spaceId) || {
+        id: event.spaceId,
+        name: event.spaceId,
+        capacity: 60,
+      },
+    );
+  const conflicts = [...(held.resourceIds || [])];
   const conflict = await store.events.findOne(
     {
       _id: { $ne: event._id },
@@ -124,9 +117,15 @@ async function assertSlot(store, event, session) {
       $and: [
         {
           $or: [
-            { spaceId: "dining-room" },
-            { spaceId: event.spaceId },
-            ...(event.spaceId === "dining-room" ? [{}] : []),
+            { "space.resourceIds": { $in: conflicts } },
+            {
+              space: { $exists: false },
+              spaceId: {
+                $in: held.resourceIds?.includes("family-corner")
+                  ? ["dining-room", "family-corner"]
+                  : [event.spaceId],
+              },
+            },
           ],
         },
         {
@@ -150,7 +149,7 @@ async function assertSlot(store, event, session) {
     },
     { session, projection: { _id: 1 } },
   );
-  if (tableBooking)
+  if (tableBooking && held.blocksDining !== false)
     throw new HttpError(
       409,
       "SLOT_BUSY",
@@ -165,7 +164,14 @@ async function assertSlot(store, event, session) {
 }
 
 export function registerEventGuest(api, store, config, requireId) {
-  api.get("/events/options", (req, res) => res.json(eventOptions));
+  api.get("/events/options", async (req, res) => {
+    const c = await readEventConfiguration(store);
+    res.json({
+      ...c,
+      spaces: c.spaces.filter((s) => s.active),
+      packages: c.packages.filter((p) => p.active),
+    });
+  });
   api.post("/events", async (req, res) => {
     const input = body(eventInput, req.body);
     const guestHash = getGuest(req, res, config);
@@ -201,8 +207,29 @@ export function registerEventGuest(api, store, config, requireId) {
         "Select a future event date within the next year.",
       );
     }
-    const space = eventOptions.spaces.find((item) => item.id === input.spaceId);
-    if (input.guests > space.capacity)
+    const configuration = await readEventConfiguration(store);
+    if (
+      input.expectedConfigRevision !== undefined &&
+      input.expectedConfigRevision !== configuration.revision
+    )
+      throw new HttpError(
+        409,
+        "EVENT_CONFIG_CHANGED",
+        "Event options changed. Refresh and review your selections.",
+      );
+    const space = configuration.spaces.find(
+        (item) => item.id === input.spaceId && item.active,
+      ),
+      selectedPackage = configuration.packages.find(
+        (item) => item.id === input.packageId && item.active,
+      );
+    if (!space || !selectedPackage)
+      throw new HttpError(
+        409,
+        "EVENT_OPTION_UNAVAILABLE",
+        "Choose an available space and package.",
+      );
+    if (input.guests < space.minGuests || input.guests > space.capacity)
       throw new HttpError(
         400,
         "CAPACITY",
@@ -221,6 +248,9 @@ export function registerEventGuest(api, store, config, requireId) {
       _id: new ObjectId(),
       ...input,
       guestHash,
+      space: spaceSnapshot(space),
+      package: { ...selectedPackage },
+      configRevision: configuration.revision,
       startsAt,
       endsAt,
       blockedUntil: new Date(endsAt.getTime() + 30 * 60000),
@@ -304,6 +334,7 @@ export function registerEventGuest(api, store, config, requireId) {
 }
 
 export function registerEventStaff(api, store, requireAdmin, requireId) {
+  registerEventConfiguration(api, store, requireAdmin);
   api.get("/events", requireAdmin, async (req, res) => {
     const events = await store.events
       .find({})
@@ -332,7 +363,22 @@ export function registerEventStaff(api, store, requireAdmin, requireId) {
           );
         if (event.startsAt <= new Date())
           throw new HttpError(409, "EVENT_DATE", "This event date has passed.");
-        await assertSlot(store, event, session);
+        const configuration = await readEventConfiguration(store, session),
+          space = configuration.spaces.find(
+            (row) => row.id === event.spaceId && row.active,
+          );
+        if (
+          !space ||
+          event.guests > space.capacity ||
+          event.guests < space.minGuests
+        )
+          throw new HttpError(
+            409,
+            "EVENT_OPTION_UNAVAILABLE",
+            "This event request no longer fits an available space. Contact the guest before quoting.",
+          );
+        const snapshot = spaceSnapshot(space);
+        await assertSlot(store, { ...event, space: snapshot }, session);
         const total =
           input.hallFee + input.perGuest * event.guests + input.extras;
         if (total <= 0)
@@ -357,7 +403,7 @@ export function registerEventStaff(api, store, requireAdmin, requireId) {
         await store.events.updateOne(
           { _id: id },
           {
-            $set: { quote, status: "quote_sent" },
+            $set: { quote, status: "quote_sent", space: snapshot },
             $push: {
               history: {
                 status: "quote_sent",
@@ -369,7 +415,7 @@ export function registerEventStaff(api, store, requireAdmin, requireId) {
           },
           { session },
         );
-        return { ...event, quote, status: "quote_sent" };
+        return { ...event, quote, status: "quote_sent", space: snapshot };
       }),
     );
     res.json({ event: eventView(result, true) });

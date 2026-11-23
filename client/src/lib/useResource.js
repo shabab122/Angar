@@ -6,9 +6,14 @@ export function useResource(path, { enabled = true, interval = 0 } = {}) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const busy = useRef(false);
+  const queued = useRef(false);
   const generation = useRef(0);
   const reload = useCallback(async () => {
-    if (!enabled || busy.current) return;
+    if (!enabled) return;
+    if (busy.current) {
+      queued.current = true;
+      return;
+    }
     const version = generation.current;
     busy.current = true;
     try {
@@ -25,6 +30,10 @@ export function useResource(path, { enabled = true, interval = 0 } = {}) {
       if (version === generation.current) {
         busy.current = false;
         setLoading(false);
+        if (queued.current) {
+          queued.current = false;
+          queueMicrotask(() => void reload());
+        }
       }
     }
   }, [path, enabled]);
@@ -32,6 +41,7 @@ export function useResource(path, { enabled = true, interval = 0 } = {}) {
   useEffect(() => {
     generation.current += 1;
     busy.current = false;
+    queued.current = false;
     setLoading(true);
     setData(null);
     setError(null);
@@ -41,11 +51,15 @@ export function useResource(path, { enabled = true, interval = 0 } = {}) {
     };
     const timer = interval ? setInterval(refresh, interval) : null;
     document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("angar:refresh", refresh);
+    window.addEventListener("online", refresh);
     return () => {
       generation.current += 1;
       busy.current = false;
       if (timer) clearInterval(timer);
       document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("angar:refresh", refresh);
+      window.removeEventListener("online", refresh);
     };
   }, [reload, interval]);
   return { data, error, loading, reload };

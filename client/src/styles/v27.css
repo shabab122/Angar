@@ -1,0 +1,269 @@
+/* v2.7 additions use the existing colours, controls and card layouts. */
+.branch-picker {
+  padding: 10px 6%;
+  background: #fff7e9;
+  border-bottom: 1px solid #e4d8cd;
+  color: #4f382d;
+}
+.branch-picker label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.branch-picker select {
+  border: 1px solid #ddccbd;
+  border-radius: 8px;
+  padding: 7px 10px;
+  max-width: 230px;
+  background: #fffaf4;
+  color: inherit;
+}
+.branch-picker small {
+  display: block;
+  color: #9c3526;
+}
+.staff-branch-picker {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.staff-branch-picker label {
+  font-size: 11px;
+}
+.staff-branch-picker select {
+  max-width: 160px;
+}
+.v27-inline {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.v27-event-config {
+  max-width: 950px;
+}
+.v27-event-config .commerce-card {
+  margin-bottom: 14px;
+}
+.v27-event-config fieldset,
+.management-dialog fieldset {
+  border: 1px solid #e4d8cd;
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+.check-line {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 9px !important;
+}
+.check-line input {
+  width: auto !important;
+  min-height: auto !important;
+}
+.network-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  background: #5d3222;
+  color: #fff7e9;
+  text-align: center;
+  padding: 12px 18px;
+  font-size: 13px;
+  box-shadow: 0 -3px 20px #0002;
+}
+.branch-conflict {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  background: #241913d9;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.branch-conflict > div {
+  background: #fff7e9;
+  border-radius: 18px;
+  padding: 30px;
+  max-width: 540px;
+  box-shadow: 0 10px 50px #0003;
+}
+.branch-conflict p {
+  margin: 16px 0;
+}
+.cart-drafts {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e4d8cd;
+}
+.cart-drafts p {
+  font-size: 12px;
+  color: #765e50;
+  margin: 8px 0;
+}
+.draft-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border-top: 1px solid #e4d8cd;
+  font-size: 12px;
+}
+.draft-row > span {
+  flex: 1;
+  min-width: 150px;
+}
+.draft-row > button:last-child {
+  background: none;
+  border: 0;
+  color: #963e28;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.gps-position {
+  padding: 14px;
+  background: #f3ede4;
+  border: 1px solid #e4d8cd;
+  border-radius: 10px;
+  display: grid;
+  gap: 7px;
+  margin: 12px 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.gps-position a,
+.delivery-tracking > a {
+  color: #963e28;
+  text-decoration: underline;
+}
+.delivery-tracking {
+  border-top: 1px solid #e4d8cd;
+  margin-top: 14px;
+  padding-top: 14px;
+}
+.delivery-code {
+  padding: 12px;
+  background: #fff4db;
+}
+.delivery-code strong {
+  font-size: 22px;
+  letter-spacing: 4px;
+}
+.delivery-code small {
+  display: block;
+  font-size: 12px;
+  margin-top: 8px;
+}
+.courier-review {
+  padding: 10px;
+  background: #fff0d2;
+  border-radius: 8px;
+}
+.private-driver-link {
+  margin-bottom: 22px;
+  overflow-wrap: anywhere;
+}
+.private-driver-link input {
+  width: 100%;
+  margin: 10px 0;
+  font-size: 12px;
+}
+.driver-page {
+  min-height: 100vh;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 20px;
+  background: #faf6ef;
+}
+.driver-page > .commerce-card {
+  margin-top: 26px;
+}
+.driver-page h1 {
+  font-size: 30px;
+}
+.driver-page h2,
+.driver-page h3 {
+  margin: 18px 0 10px;
+}
+.driver-page p {
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.pwa-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 4px 6%;
+  background: #f7f1e8;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.pwa-controls button {
+  border: 0;
+  background: none;
+  color: #7a3828;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 5px;
+}
+.pwa-controls p {
+  max-width: 500px;
+}
+.pwa-controls > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.commerce-card {
+  min-width: 0;
+}
+.commerce-card input {
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  .staff-topbar {
+    flex-wrap: wrap;
+  }
+  .staff-topbar-right {
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .staff-branch-picker label {
+    gap: 6px;
+  }
+  .staff-branch-picker select {
+    max-width: 130px;
+  }
+  .cart-drafts {
+    padding: 12px 16px;
+  }
+  .branch-picker label {
+    flex-wrap: wrap;
+  }
+  .v27-event-config .commerce-two {
+    grid-template-columns: 1fr;
+  }
+  .driver-page {
+    padding: 20px 14px;
+  }
+  .network-banner {
+    font-size: 11px;
+  }
+}
+
+.cart-drafts {
+  flex: 0 1 auto;
+  max-height: 220px;
+  overflow: auto;
+  min-height: 100px;
+}

@@ -1,6 +1,6 @@
 {
   "name": "angar-kitchen",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "private": true,
   "description": "React restaurant website with QR ordering, table billing and a staff workspace.",
   "type": "module",
@@ -11,7 +11,7 @@
     "setup": "node scripts/setup.js",
     "seed": "node --env-file-if-exists=.env scripts/seed.js",
     "tables": "node --env-file-if-exists=.env scripts/tables.js",
-    "build": "node scripts/fonts.js && vite build",
+    "build": "node scripts/fonts.js && vite build && node scripts/pwa.js",
     "start": "node --env-file-if-exists=.env server/index.js",
     "dev": "node --env-file-if-exists=.env --watch server/index.js --dev",
     "test": "node --env-file-if-exists=.env --test --test-concurrency=2 test/*.test.js",
@@ -22,7 +22,8 @@
     "notifications:outbox": "node --env-file-if-exists=.env scripts/notification-outbox.js",
     "backup:remote-list": "node --env-file-if-exists=.env scripts/backup-cloud.js list",
     "backup:fetch": "node --env-file-if-exists=.env scripts/backup-cloud.js fetch",
-    "mfa:recover": "node --env-file-if-exists=.env scripts/mfa-recover.js"
+    "mfa:recover": "node --env-file-if-exists=.env scripts/mfa-recover.js",
+    "branch:recover": "node --env-file-if-exists=.env scripts/branch-recover.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1173.0",

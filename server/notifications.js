@@ -1,3 +1,4 @@
+import { branchPath } from "./branches.js";
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { ECDH, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
@@ -23,19 +24,19 @@ const defaults = {
 export const smsReady = (config) =>
   Boolean(
     config.smsTransport ||
-      (config.sms?.mode === "outbox" && !config.production) ||
-      (config.sms?.mode === "twilio" &&
-        config.sms.accountSid &&
-        config.sms.token &&
-        config.sms.from),
+    (config.sms?.mode === "outbox" && !config.production) ||
+    (config.sms?.mode === "twilio" &&
+      config.sms.accountSid &&
+      config.sms.token &&
+      config.sms.from),
   );
 export const pushReady = (config) =>
   Boolean(
     config.pushTransport ||
-      (config.push?.enabled &&
-        config.push.publicKey &&
-        config.push.privateKey &&
-        config.push.subject),
+    (config.push?.enabled &&
+      config.push.publicKey &&
+      config.push.privateKey &&
+      config.push.subject),
   );
 const statuses = {
   placed: ["received", "গ্রহণ করা হয়েছে"],
@@ -396,7 +397,11 @@ async function deliverJob(store, config, job) {
     await deliverMail(config, {
       to: job.to,
       subject: job.title,
-      text: job.text + "\n\n" + config.origin + job.href,
+      text:
+        job.text +
+        "\n\n" +
+        config.origin +
+        branchPath(job.href, config.branchId),
     });
   } else if (job.channel === "sms") {
     if (preference.verifiedPhone !== job.to || !smsReady(config))
@@ -426,7 +431,7 @@ async function deliverJob(store, config, job) {
     const payload = JSON.stringify({
       title: job.title,
       body: job.text,
-      url: job.href,
+      url: branchPath(job.href, config.branchId),
       tag: job.noticeId,
     });
     try {
@@ -615,7 +620,7 @@ export function registerNotifications(api, store, config) {
           id: _id,
           title,
           text,
-          href,
+          href: branchPath(href, config.branchId),
           read,
           createdAt,
         }),

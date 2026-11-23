@@ -1,3 +1,5 @@
+import { registerCourierGuest, registerCourierStaff } from "./courier.js";
+import { hasPermission } from "./access.js";
 import { registerStocktakes } from "./stocktakes.js";
 import { registerSupplierReturns } from "./supplier-returns.js";
 import { registerFinance } from "./finance.js";
@@ -91,6 +93,7 @@ export function registerGuestFeatures(api, store, config, requireId) {
   registerGuestRewards(api, store, config);
   registerGuestBills(api, store, config, requireId);
   registerGuestFulfillment(api, store, config, requireId);
+  registerCourierGuest(api, store, config, requireId);
   registerGuestGateway(api, store, config, requireId);
   registerGuestReservations(api, store, config, requireId);
   api.get("/restaurant", async (req, res) =>
@@ -281,6 +284,7 @@ export function registerStaffFeatures(
   );
   registerPurchasing(api, store, billingRoles, requireAdmin, requireId);
   registerStaffNotifications(api, store, config, requireAdmin);
+  registerCourierStaff(api, store, config, requireId);
   registerStaffFulfillment(
     api,
     store,
@@ -351,9 +355,15 @@ export function registerStaffFeatures(
       live,
       tables,
       pendingReviews,
-      sales: (sales[0]?.value || 0) / 100,
-      settledBills: sales[0]?.count || 0,
-      days: days.map((day) => ({ date: day._id, amount: day.amount / 100 })),
+      sales: hasPermission(req.staff, "reports.view")
+        ? (sales[0]?.value || 0) / 100
+        : 0,
+      settledBills: hasPermission(req.staff, "reports.view")
+        ? sales[0]?.count || 0
+        : 0,
+      days: hasPermission(req.staff, "reports.view")
+        ? days.map((day) => ({ date: day._id, amount: day.amount / 100 }))
+        : [],
       requests,
       events,
     });

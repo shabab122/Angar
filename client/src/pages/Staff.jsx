@@ -1,3 +1,5 @@
+import { BranchSelector } from "../components/BranchSelector";
+import { useLiveUpdates } from "../lib/useLiveUpdates";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -54,6 +56,9 @@ import {
   TablesPanel,
 } from "./StaffPanels";
 
+const BranchManagement = lazy(() => import("./BranchManagement"));
+const EventConfiguration = lazy(() => import("./EventConfiguration"));
+const CourierPanel = lazy(() => import("./CourierPanel"));
 const StocktakesPanel = lazy(() => import("./StocktakesPanel"));
 const SupplierReturnsPanel = lazy(() => import("./SupplierReturnsPanel"));
 const FinancePanel = lazy(() => import("./FinancePanel"));
@@ -61,6 +66,9 @@ const PrintingPanel = lazy(() => import("./PrintingPanel"));
 const OperationsAlerts = lazy(() => import("./OperationsAlerts"));
 
 const navigation = [
+  ["branches", Truck, "Restaurant branches", ["admin"]],
+  ["eventConfig", CalendarDays, "Event spaces & packages", ["admin"]],
+  ["courier", Truck, "Couriers & delivery GPS", ["admin", "waiter"]],
   ["stocktakes", PackageCheck, "Physical stock counts", ["admin", "kitchen"]],
   [
     "supplierReturns",
@@ -120,6 +128,41 @@ const navigation = [
   ["settings", Settings2, "Restaurant settings", ["admin"]],
 ];
 
+const navPermission = {
+  branches: ["branches.manage"],
+  eventConfig: ["events.configure"],
+  courier: ["courier.manage"],
+  stocktakes: ["stocktake.count"],
+  supplierReturns: ["purchase.view"],
+  finance: ["finance.view"],
+  printing: ["printing.kitchen", "printing.receipt", "printing.configure"],
+  operationsAlerts: ["alerts.view"],
+  orders: ["orders.view"],
+  fulfillment: ["orders.view"],
+  tables: ["tables.view"],
+  billing: ["billing.view"],
+  cash: ["cash.manage"],
+  audit: ["audit.view"],
+  events: ["events.view"],
+  reviews: ["reviews.manage"],
+  requests: ["floor.manage"],
+  manual: ["orders.manual"],
+  menu: ["menu.manage"],
+  availability: ["availability.manage"],
+  reports: ["reports.view"],
+  reservations: ["reservations.manage"],
+  coupons: ["settings.manage"],
+  gateway: ["billing.manage"],
+  refunds: ["refund.request"],
+  team: ["staff.manage"],
+  inventory: ["inventory.view"],
+  batches: ["inventory.view"],
+  purchasing: ["purchase.view"],
+  invoices: ["settings.manage"],
+  backups: ["backups.manage"],
+  notifications: ["notifications.manage"],
+  settings: ["settings.manage"],
+};
 export function Staff() {
   const [user, setUser] = useState(undefined);
   const [bootError, setBootError] = useState("");
@@ -235,6 +278,7 @@ function Login({ onSignedIn, initialError }) {
           <span className="login-lock">
             <ShieldCheck size={26} />
           </span>
+          <BranchSelector staff />
           <Eyebrow>WELCOME TO YOUR STATION</Eyebrow>
           <h2>
             Let’s get
@@ -368,21 +412,40 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
   // here so an in-flight response for the old session cannot discard the codes.
   const queue = useResource("/staff/orders", {
     interval: 3000,
-    enabled: tab !== "access",
+    enabled: tab !== "access" && user.capabilities?.["orders.view"] !== false,
   });
   const overview = useResource("/staff/overview", {
     interval: 10000,
     enabled: tab !== "access",
   });
   const operationsAlerts = useResource("/staff/operations-alerts", {
-    enabled: ["admin", "kitchen", "cashier"].includes(user.role),
+    enabled:
+      ["admin", "kitchen", "cashier"].includes(user.role) &&
+      user.capabilities?.["alerts.view"] !== false,
     interval: 60000,
   });
   const floorQueue = useResource("/staff/service-requests", {
     interval: 3000,
-    enabled: ["admin", "waiter"].includes(user.role),
+    enabled:
+      ["admin", "waiter"].includes(user.role) &&
+      user.capabilities?.["floor.manage"] !== false,
   });
-  const activeNav = navigation.filter((item) => item[3].includes(user.role));
+  const live = useLiveUpdates({
+    enabled: tab !== "access",
+    onAccessChanged: onSignedOut,
+  });
+  const activeNav = navigation.filter(
+    (item) =>
+      item[3].includes(user.role) &&
+      (item[0] !== "branches" || user.platformAdmin) &&
+      (!navPermission[item[0]] ||
+        navPermission[item[0]].some(
+          (key) => user.capabilities?.[key] !== false,
+        )),
+  );
+  useEffect(() => {
+    if (!activeNav.some((item) => item[0] === tab)) setTab("access");
+  }, [user, tab]);
   const title = activeNav.find((item) => item[0] === tab)?.[2] || "Workspace";
   useEffect(() => {
     if (queue.error?.status === 401 || overview.error?.status === 401)
@@ -468,6 +531,7 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
             <button
               type="button"
               key={id}
+              aria-label={label}
               className={tab === id ? "active" : ""}
               onClick={() => select(id)}
               aria-current={tab === id ? "page" : undefined}
@@ -544,6 +608,7 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
             <strong>{title}</strong>
           </div>
           <div className="staff-topbar-right">
+            <BranchSelector staff />
             <button
               className={"sound-toggle" + (sound ? " enabled" : "")}
               type="button"
@@ -565,7 +630,7 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
         <main className="staff-main">
           <div className="staff-page-heading">
             <div>
-              <Eyebrow>ANGAR KITCHEN · DHANMONDI</Eyebrow>
+              <Eyebrow>ANGAR KITCHEN · {user.branchId || "main"}</Eyebrow>
               <h1>
                 {tab === "overview" ? "A good day for good food." : title}
               </h1>
@@ -589,13 +654,17 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
             </Button>
           </div>
           <div
-            className={"live-status" + (queue.error ? " offline" : "")}
+            className={"live-status" + (live !== "connected" ? " offline" : "")}
             role="status"
           >
             <span />
-            {queue.error
-              ? "Live updates paused. Reconnecting…"
-              : "Connected · queue refreshes every 3 seconds"}
+            {live === "connected"
+              ? "Connected · instant updates with queue polling backup"
+              : live === "paused"
+                ? "Live connection paused while updating your access"
+                : live === "offline"
+                  ? "Offline · reconnect to continue"
+                  : "Reconnecting live updates · queue polling remains available"}
             <time>{dhakaTime(new Date(), true)}</time>
           </div>
           {tab === "overview" && (
@@ -628,6 +697,9 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
           {tab === "team" && <StaffAccounts user={user} />}
           {tab === "inventory" && <InventoryPanel {...common} />}
           <Suspense fallback={<Loading />}>
+            {tab === "branches" && <BranchManagement />}
+            {tab === "eventConfig" && <EventConfiguration />}
+            {tab === "courier" && <CourierPanel user={user} />}
             {tab === "stocktakes" && <StocktakesPanel user={user} />}
             {tab === "supplierReturns" && <SupplierReturnsPanel user={user} />}
             {tab === "finance" && <FinancePanel user={user} />}

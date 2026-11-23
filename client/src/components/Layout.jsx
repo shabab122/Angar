@@ -1,3 +1,5 @@
+import { PwaControls } from "./PwaControls";
+import { BranchSelector } from "./BranchSelector";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import {
@@ -48,6 +50,8 @@ export function Layout() {
           </span>
         </div>
       </div>
+      <BranchSelector />
+      <PwaControls />
       <header className="site-header">
         <div className="container header-inner">
           <Logo />

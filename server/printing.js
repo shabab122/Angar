@@ -1,3 +1,4 @@
+import { hasPermission } from "./access.js";
 import net from "node:net";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -21,14 +22,14 @@ export const printerReady = (config) => {
   const p = printerSettings(config);
   return Boolean(
     p.host &&
-      p.host.length <= 253 &&
-      /^[A-Za-z0-9.:-]+$/.test(p.host) &&
-      Number.isInteger(p.port) &&
-      p.port > 0 &&
-      p.port <= 65535 &&
-      Number.isInteger(p.columns) &&
-      p.columns >= 32 &&
-      p.columns <= 48,
+    p.host.length <= 253 &&
+    /^[A-Za-z0-9.:-]+$/.test(p.host) &&
+    Number.isInteger(p.port) &&
+    p.port > 0 &&
+    p.port <= 65535 &&
+    Number.isInteger(p.columns) &&
+    p.columns >= 32 &&
+    p.columns <= 48,
   );
 };
 const destinationHash = (config) =>
@@ -279,8 +280,8 @@ function receiptLines(bill) {
 }
 const permitted = (req, row) =>
   row.kind === "kitchen"
-    ? ["admin", "kitchen"].includes(req.staff.role)
-    : ["admin", "cashier"].includes(req.staff.role);
+    ? hasPermission(req.staff, "printing.kitchen")
+    : hasPermission(req.staff, "printing.receipt");
 export function registerPrinting(
   api,
   store,
@@ -307,7 +308,7 @@ export function registerPrinting(
       .limit(100)
       .toArray();
     res.json({
-      jobs: rows.map(view),
+      jobs: rows.filter((row) => permitted(req, row)).map(view),
       configured: printerReady(config),
       autoEnabled: Boolean(policy?.autoEnabled),
       profile:

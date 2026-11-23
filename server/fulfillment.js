@@ -1,3 +1,4 @@
+import { guardCourierTransition } from "./courier.js";
 import { queueKitchenTicket } from "./printing.js";
 import { recordConsumption } from "./inventory-cost.js";
 import { ObjectId } from "mongodb";
@@ -818,6 +819,7 @@ export function registerStaffFulfillment(
         }
         changes.status = next;
       }
+      await guardCourierTransition(store, row, input.action, session);
       const history = {
         status: changes.status,
         at: now,

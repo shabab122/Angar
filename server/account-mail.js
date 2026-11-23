@@ -1,3 +1,4 @@
+import { branchPath } from "./branches.js";
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
@@ -93,7 +94,8 @@ export async function issueAccountMail(store, config, customer, purpose) {
   if (!issued) return { sent: false, reason: "recent" };
   const link =
     config.origin +
-    "/account/action#" +
+    branchPath("/account/action", config.branchId) +
+    "#" +
     new URLSearchParams({ purpose, token });
   try {
     await deliverMail(config, {

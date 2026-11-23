@@ -1,3 +1,10 @@
+import { lazy, Suspense } from "react";
+const DeliveryTracking = lazy(() =>
+  import("./CourierPanel").then((module) => ({
+    default: module.DeliveryTracking,
+  })),
+);
+import { branchStorage } from "../lib/branch";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BellRing, ShoppingBag, Truck } from "lucide-react";
@@ -164,6 +171,10 @@ export function Takeaway() {
     }
   }
   async function place() {
+    if (!app.online || app.menuCached) {
+      setError("Reconnect and refresh the menu before ordering.");
+      return;
+    }
     setBusy(true);
     setError("");
     const payload = {
@@ -183,9 +194,17 @@ export function Takeaway() {
       quoteHash: quote.quoteHash,
     };
     const fingerprint = JSON.stringify(payload),
-      old = readStorage("angar.fulfillment.checkout", null, true),
+      old = readStorage(
+        branchStorage("angar.fulfillment.checkout"),
+        null,
+        true,
+      ),
       key = old?.fingerprint === fingerprint ? old.key : requestKey();
-    saveStorage("angar.fulfillment.checkout", { fingerprint, key }, true);
+    saveStorage(
+      branchStorage("angar.fulfillment.checkout"),
+      { fingerprint, key },
+      true,
+    );
     try {
       await api("/fulfillment/orders", {
         method: "POST",
@@ -193,7 +212,7 @@ export function Takeaway() {
       });
       app.clearCart();
       setQuote(null);
-      saveStorage("angar.fulfillment.checkout", null, true);
+      saveStorage(branchStorage("angar.fulfillment.checkout"), null, true);
       await orders.reload();
       notify(
         t(
@@ -332,10 +351,7 @@ export function Takeaway() {
             {!pricedLines.length ? (
               <EmptyState
                 icon={ShoppingBag}
-                title={t(
-                  "Choose a dish to begin.",
-                  "শুরু করতে খাবার যোগ করুন।",
-                )}
+                title={t("Choose a dish to begin.", "শুরু করতে খাবার যোগ করুন।")}
               />
             ) : (
               <>
@@ -552,7 +568,10 @@ export function Takeaway() {
                     </p>
                   )}
                   {error && <ErrorMessage>{error}</ErrorMessage>}
-                  <Button type="submit" disabled={busy || !available}>
+                  <Button
+                    type="submit"
+                    disabled={busy || !available || !app.online}
+                  >
                     {busy
                       ? t("Checking…", "যাচাই হচ্ছে…")
                       : t("Review price & time", "দাম ও সময় দেখুন")}
@@ -586,11 +605,8 @@ export function Takeaway() {
                         "পেমেন্টের আগে স্টাফকে অর্ডার গ্রহণ করতে হবে। টেকঅ্যাওয়ে ও ডেলিভারির বিল সম্পূর্ণ পরিশোধ করতে হয়। ডেলিভারি সম্পন্ন করতে যাচাইকৃত পেমেন্ট প্রয়োজন। আনুমানিক সময় পরিবর্তন হতে পারে।",
                       )}
                     </p>
-                    <Button onClick={place} disabled={busy}>
-                      {t(
-                        "Confirm order request",
-                        "অর্ডারের অনুরোধ নিশ্চিত করুন",
-                      )}
+                    <Button onClick={place} disabled={busy || !app.online}>
+                      {t("Confirm order request", "অর্ডারের অনুরোধ নিশ্চিত করুন")}
                     </Button>
                   </div>
                 )}
@@ -652,6 +668,11 @@ export function Takeaway() {
                     {order.address.line}, {order.address.area} ·{" "}
                     {order.zoneName}
                   </p>
+                )}
+                {order.kind === "delivery" && (
+                  <Suspense fallback={null}>
+                    <DeliveryTracking order={order} />
+                  </Suspense>
                 )}
                 {order.courier && (
                   <p>

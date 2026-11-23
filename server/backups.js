@@ -43,6 +43,7 @@ const transient = new Set([
   "backupSyncJobs",
   "printJobs",
   "staffAlertDeliveries",
+  "courierWebhookEvents",
 ]);
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const defaults = { enabled: false, everyHours: 24, keep: 7, nextAt: null };
@@ -118,7 +119,10 @@ export async function createBackup(store, config, id) {
     if (error.code !== "ENOENT") throw error;
   }
   const collections = Object.values(store)
-    .filter((value) => value?.collectionName)
+    .filter(
+      (value) =>
+        value?.collectionName && value.dbName === store.db.databaseName,
+    )
     .sort((a, b) => a.collectionName.localeCompare(b.collectionName));
   const definitions = [];
   for (const collection of collections)
@@ -442,6 +446,26 @@ export async function restoreBackup(
     {
       $set: { email: false, sms: false, push: false, sinceAt: new Date() },
       $inc: { generation: 1 },
+    },
+  );
+  await target.collection("branches").updateMany(
+    { _id: { $ne: "main" } },
+    {
+      $set: { active: false, state: "recovery_required" },
+      $unset: { databaseOverride: "" },
+    },
+  );
+  await target.collection("courierJobs").updateMany(
+    {},
+    {
+      $unset: {
+        driverTokenHash: "",
+        location: "",
+        locationAt: "",
+        deliveryCode: "",
+        deliveryCodeHash: "",
+      },
+      $set: { trackingRevoked: true },
     },
   );
   await target

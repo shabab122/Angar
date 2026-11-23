@@ -1,21 +1,35 @@
-# Angar Kitchen · React v2.6
+# Angar Kitchen · React v2.7
 
 বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
 
 **প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
 
+## v2.7 — নতুন ছয়টি ফিচার
 
-## v2.6 — এই release-এর পাঁচটি নতুন ফিচার
+**Base: Angar_Kitchen_React_v2.6.zip।** Existing React–Express–MongoDB stack, restaurant design/assets এবং working workflows রাখা হয়েছে। পূর্ণ upgrade ও ব্যবহারবিধি: [UPGRADE_v2.7_BN.md](UPGRADE_v2.7_BN.md)।
+
+| ফিচার                            | কোথায় / কী যোগ হয়েছে                                                                                                                                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Event configuration              | Event spaces & packages: capacity, minimum guests, room resource conflicts, active/archive controls, package rates, suggested hall fee ও deposit। Existing quotes নিজেদের price snapshot রাখে।                     |
+| Instant live updates             | Staff order/kitchen/counter screens-এ MongoDB change stream → SSE invalidations, reconnect/resync ও existing polling fallback।                                                                                     |
+| Courier & GPS                    | Couriers & delivery GPS: configurable HTTPS courier adapter, idempotent reference, signed webhooks/reconciliation, private staff-driver links, opt-in GPS ও recipient-code handover। Manual dispatch আগের মতো আছে। |
+| Custom permissions               | Staff accounts → Permissions & limits: role-এর মধ্যে action restrictions, branch assignments, exact refund/purchase/payment/expense approval limits ও session revocation।                                           |
+| Multi-branch management          | Restaurant branches: separate business databases, menu, customer accounts, stock, cash drawer, invoice series, reports ও workers; shared staff identities with branch assignments। Existing data `main`-এই থাকে।   |
+| Installable PWA / offline drafts | Web app manifest/icons, public offline menu, branch-specific local cart drafts, explicit online review, update prompt ও preserved push handlers। Private APIs / payment writes cache বা replay হয় না।              |
+
+Existing installation-এ `.env`, database, photos/backups এবং original encryption keys রাখুন; নতুন folder-এ `npm ci`, `npm run setup`, `npm run build`, `npm start`। **আবার demo seed/reset লাগবে না।** New branches শুরুতে ordering paused থাকে। External courier চালাতে আপনার provider-compatible adapter ও credentials দরকার; contract [COURIER_ADAPTER.md](COURIER_ADAPTER.md)-এ। PWA ও browser GPS-এর জন্য HTTPS অথবা localhost প্রয়োজন।
+
+## v2.6-এর সংরক্ষিত পাঁচটি ফিচার
 
 **Base: Angar_Kitchen_React_v2.5.zip।** Existing stack, guest design/assets এবং working features রেখে এই release তৈরি। Full upgrade/setup guide: [UPGRADE_v2.6_BN.md](UPGRADE_v2.6_BN.md)।
 
-| ফিচার | কোথায় / কী যোগ হয়েছে |
-|---|---|
-| Physical stocktake | Physical stock counts: ingredient/lot snapshot, physical counts, manager review, transactional adjustments ও stale-count recount। |
-| Supplier returns / credit notes | Supplier returns & credits: original receipt reservation, approval, physical handover, payable credit, actual supplier refund receipt ও cash drawer integration। |
-| Expenses / operating result | Expenses & operating result: supported opening valuation, weighted recipe costs, approved operating expenses, partial actual payments ও VAT-exclusive management result / CSV। Historical costs missing হলে estimate দেখায়। |
-| Kitchen tickets / thermal printer | Automatic revisioned KOTs, superseded old pending tickets, 80 mm browser receipt, optional operator-configured ASCII ESC/POS TCP printer, explicit physical confirmation ও marked reprints। |
-| Automated staff alerts | Operations alerts: usable low stock, approaching/expired lots, overdue supplier balances, personal acknowledgement ও optional daily staff email digest। |
+| ফিচার                             | কোথায় / কী যোগ হয়েছে                                                                                                                                                                                                        |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Physical stocktake                | Physical stock counts: ingredient/lot snapshot, physical counts, manager review, transactional adjustments ও stale-count recount।                                                                                           |
+| Supplier returns / credit notes   | Supplier returns & credits: original receipt reservation, approval, physical handover, payable credit, actual supplier refund receipt ও cash drawer integration।                                                            |
+| Expenses / operating result       | Expenses & operating result: supported opening valuation, weighted recipe costs, approved operating expenses, partial actual payments ও VAT-exclusive management result / CSV। Historical costs missing হলে estimate দেখায়। |
+| Kitchen tickets / thermal printer | Automatic revisioned KOTs, superseded old pending tickets, 80 mm browser receipt, optional operator-configured ASCII ESC/POS TCP printer, explicit physical confirmation ও marked reprints।                                 |
+| Automated staff alerts            | Operations alerts: usable low stock, approaching/expired lots, overdue supplier balances, personal acknowledgement ও optional daily staff email digest।                                                                     |
 
 Existing installation-এ পুরোনো `.env`, database, photos/backups এবং original backup/MFA keys রাখুন; আলাদা folder-এ `npm ci`, `npm run setup`, `npm run build`, `npm start`। আবার seed/reset লাগবে না। Direct printer ও staff email default off; নিজের printer/SMTP settings ও acceptance test প্রয়োজন। New KOT creation ও in-app staff alerts external service ছাড়াই চলে।
 
@@ -23,14 +37,14 @@ Existing installation-এ পুরোনো `.env`, database, photos/backups �
 
 **Base: Angar_Kitchen_React_v2.4.zip।** আগের design/assets, React–Express–MongoDB stack ও working features রেখে এই সংযোজনগুলো হয়েছে। Existing data রেখে upgrade এবং নতুন configuration-এর পূর্ণ নির্দেশনা: [UPGRADE_v2.5_BN.md](UPGRADE_v2.5_BN.md)।
 
-| ফিচার | কোথায় / কী যোগ হয়েছে |
-|---|---|
-| Audit dashboard | Admin → Staff activity: date/action/actor/search filters, pagination ও protected CSV। |
-| Staff 2FA | My access: authenticator setup, password + code login, single-use recovery codes, optional required-admin policy ও audited recovery। |
-| Off-site backups | Backups & recovery: private S3-compatible bucket-এ existing encrypted bundle copy, downloaded checksum verification, retries ও recovery CLI। নিজের bucket/credentials দরকার; default off। |
-| Cash drawer / shifts | Admin/cashier → Cash drawer & shifts: opening count, cash receipts/refunds/deposits/supplier expenses, closing difference, admin review ও CSV। |
+| ফিচার                       | কোথায় / কী যোগ হয়েছে                                                                                                                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Audit dashboard             | Admin → Staff activity: date/action/actor/search filters, pagination ও protected CSV।                                                                                                       |
+| Staff 2FA                   | My access: authenticator setup, password + code login, single-use recovery codes, optional required-admin policy ও audited recovery।                                                        |
+| Off-site backups            | Backups & recovery: private S3-compatible bucket-এ existing encrypted bundle copy, downloaded checksum verification, retries ও recovery CLI। নিজের bucket/credentials দরকার; default off।   |
+| Cash drawer / shifts        | Admin/cashier → Cash drawer & shifts: opening count, cash receipts/refunds/deposits/supplier expenses, closing difference, admin review ও CSV।                                              |
 | Ingredient batches / expiry | Admin/kitchen → Batches & expiry: explicit opening lots, earliest-expiry allocation, alerts/quarantine, tracked returns ও preparation safety check। Existing ingredients default untracked। |
-| Suppliers / purchases | Admin/cashier → Suppliers & purchases: supplier contacts, purchase drafts/approval, counted partial deliveries, lot-aware stock, received-goods payables ও verified payments। |
+| Suppliers / purchases       | Admin/cashier → Suppliers & purchases: supplier contacts, purchase drafts/approval, counted partial deliveries, lot-aware stock, received-goods payables ও verified payments।               |
 
 Existing installation-এ পুরোনো `.env`, MongoDB, photos/backups এবং encryption keys রাখুন; নতুন folder-এ `npm ci`, `npm run setup`, `npm run build`, `npm start`। আবার demo seed বা database reset লাগবে না। Setup missing MFA key যোগ করে; existing values রাখে। Real cloud delivery এবং payment/SMS/email provider acceptance নিজের credentials দিয়ে করতে হবে।
 
@@ -38,12 +52,12 @@ Existing installation-এ পুরোনো `.env`, MongoDB, photos/backups এ
 
 **Base: Angar_Kitchen_React_v2.3.zip।** React–Express–MongoDB stack, পুরোনো design/assets এবং QR/table workflows রেখে নিচের সংযোজন করা হয়েছে।
 
-| ফিচার | কোথায় / কীভাবে ব্যবহার করবেন |
-|---|---|
-| Automated backups / recovery | Admin → Backups & recovery। Encrypted database + referenced review photos, configurable schedule/retention, private download। প্রতিটি তৈরি backup আলাদা database/media folder-এ restore করে যাচাই হয়। Recovery CLI কখনও existing database overwrite করে না। |
-| Event / excess-payment refunds | Admin/cashier → Refunds & credit notes → Event deposits & excess online payments। Original funds-এর পুরো/আংশিক request, admin approval, verified return / original-provider reconciliation ও credit note। Food sales/loyalty আলাদা থাকে। |
-| Order / reservation alerts | `/notifications` → in-app, verified email, OTP-verified SMS ও permission-based Web Push। Order updates, এক ঘণ্টার মধ্যে booking reminder, waiting-list call। Admin → Notification delivery। SMTP/Twilio/Web Push নিজের credentials দিয়ে configure করতে হবে। |
-| Takeaway / delivery | `/takeaway`; সব staff roles → Pickup & delivery। Admin hours/areas/fees চালু করেন; guest quote review, contact/address, requested time, acceptance, preparation, courier dispatch ও tracking। Existing invoices, stock, coupons/points, online/counter payment ও refunds যুক্ত আছে। |
+| ফিচার                          | কোথায় / কীভাবে ব্যবহার করবেন                                                                                                                                                                                                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Automated backups / recovery   | Admin → Backups & recovery। Encrypted database + referenced review photos, configurable schedule/retention, private download। প্রতিটি তৈরি backup আলাদা database/media folder-এ restore করে যাচাই হয়। Recovery CLI কখনও existing database overwrite করে না।                       |
+| Event / excess-payment refunds | Admin/cashier → Refunds & credit notes → Event deposits & excess online payments। Original funds-এর পুরো/আংশিক request, admin approval, verified return / original-provider reconciliation ও credit note। Food sales/loyalty আলাদা থাকে।                                          |
+| Order / reservation alerts     | `/notifications` → in-app, verified email, OTP-verified SMS ও permission-based Web Push। Order updates, এক ঘণ্টার মধ্যে booking reminder, waiting-list call। Admin → Notification delivery। SMTP/Twilio/Web Push নিজের credentials দিয়ে configure করতে হবে।                        |
+| Takeaway / delivery            | `/takeaway`; সব staff roles → Pickup & delivery। Admin hours/areas/fees চালু করেন; guest quote review, contact/address, requested time, acceptance, preparation, courier dispatch ও tracking। Existing invoices, stock, coupons/points, online/counter payment ও refunds যুক্ত আছে। |
 
 **v2.3 থেকে upgrade:** আগের app বন্ধ করে নতুন ZIP আলাদা folder-এ extract করুন। আগের `.env` ও persistent review photos রাখুন; একই MongoDB ব্যবহার করুন। `npm ci` → `npm run setup` → `npm run build` → `npm start`। Existing database-এ seed/reset করবেন না। Setup নতুন backup/VAPID keys যোগ করে, আগের configured values রাখে। Backup key-এর আলাদা নিরাপদ copy রাখুন।
 
@@ -53,13 +67,13 @@ Pickup/delivery ও automatic backup schedule প্রথমে বন্ধ �
 
 **Base: Angar_Kitchen_React_v2.2.zip।** শুধু নির্বাচিত সংযোজন ও প্রয়োজনীয় integration hooks; পুরোনো guest pages/assets/design, tech stack ও workflows রাখা হয়েছে।
 
-| ফিচার | ব্যবহার |
-|---|---|
-| Email verification / recovery | My account → verification email; Sign in → Forgot password। Expiring single-use links, secure reset ও session revocation। SMTP configure করতে হবে; local-only private outbox test mode আছে। |
-| Full / partial refunds | Admin/cashier → Refunds & credit notes। Original settled receipt অনুযায়ী request, admin approval, confirmed return/provider reconciliation, credit notes, loyalty/coupon adjustments। |
-| Staff accounts | Admin → Staff accounts। Individual users, role/active control, temporary password reset। All roles → My access। New temporary accounts নিজের password না দেওয়া পর্যন্ত workspace খুলতে পারে না। |
-| Ingredient inventory | Admin/kitchen → Ingredients & recipes। Base units, receive/waste/corrections, low-stock alerts, base/size/add-on recipes ও immutable stock movements। Acceptance/approved edits/cancellation-এর সঙ্গে transaction-এ stock মেলে। |
-| Tax/VAT / invoices | Admin → Tax & invoices। Inclusive/exclusive tax, configurable base/rate, invoice identity, prefix/sequence, immutable invoice snapshots ও tax credit notes। Tax default বন্ধ। |
+| ফিচার                         | ব্যবহার                                                                                                                                                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Email verification / recovery | My account → verification email; Sign in → Forgot password। Expiring single-use links, secure reset ও session revocation। SMTP configure করতে হবে; local-only private outbox test mode আছে।                                    |
+| Full / partial refunds        | Admin/cashier → Refunds & credit notes। Original settled receipt অনুযায়ী request, admin approval, confirmed return/provider reconciliation, credit notes, loyalty/coupon adjustments।                                           |
+| Staff accounts                | Admin → Staff accounts। Individual users, role/active control, temporary password reset। All roles → My access। New temporary accounts নিজের password না দেওয়া পর্যন্ত workspace খুলতে পারে না।                                   |
+| Ingredient inventory          | Admin/kitchen → Ingredients & recipes। Base units, receive/waste/corrections, low-stock alerts, base/size/add-on recipes ও immutable stock movements। Acceptance/approved edits/cancellation-এর সঙ্গে transaction-এ stock মেলে। |
+| Tax/VAT / invoices            | Admin → Tax & invoices। Inclusive/exclusive tax, configurable base/rate, invoice identity, prefix/sequence, immutable invoice snapshots ও tax credit notes। Tax default বন্ধ।                                                   |
 
 **v2.2 থেকে upgrade:** পুরোনো app বন্ধ করে নতুন ZIP আলাদা folder-এ extract করুন। আগের `.env`, database connection ও uploaded photos রাখুন। MongoDB চালু রেখে নতুন folder-এ `npm ci`, `npm run setup`, `npm run build`, `npm start`। Existing data-তে seed/reset লাগবে না; নতুন optional fields/collections/indexes নিজে তৈরি হয়।
 
@@ -71,13 +85,13 @@ Real SMTP এবং real merchant sandbox/live payment/refund আপনার cr
 
 **Base: Angar_Kitchen_React_v2.1.zip।** আগের brand/design, React–Express–MongoDB stack, QR ordering, kitchen/floor flow, reviews ও events রেখে যোগ হয়েছে:
 
-| ফিচার | কোথায় ব্যবহার করবেন |
-|---|---|
-| Split bills / partial payments | Cashier/Admin → Counter & bills → Finalize → Payments & splits। Equal, ordering customer/device, exact amount বা whole-item quantity দিয়ে ভাগ। প্রতিটি receipt একই bill balance কমায়; পুরোটা পরিশোধের পরই table বন্ধ হয়। |
-| SSLCOMMERZ integration | Guest → My orders → final table bill → online checkout। Provider verification/IPN, duplicate protection, held amounts ও staff reconciliation। নিজের merchant credentials ও public HTTPS callback configure করতে হবে। |
-| Customer accounts | Header-এর account icon → registration/login, profile, password change, points ও paginated order history। Order again বর্তমান দাম/options/availability যাচাই করে review করার জন্য cart প্রস্তুত করে। Guest QR ordering আগের মতোই আছে। |
-| Coupons / loyalty | Admin → Coupons & loyalty। Guest account → offers; My orders → table bill → coupon/points নির্বাচন, bill finalize হওয়ার আগে। Expiry, minimum spend, global/account usage limits ও points ledger আছে। |
-| Reservations / waiting list | Website → Reserve a table; Staff → Reservations & queue। সময়/party size অনুযায়ী booking, cancellation, no-show, reserved seating, waiting-list call/seat ও table capacity/settings। |
+| ফিচার                          | কোথায় ব্যবহার করবেন                                                                                                                                                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Split bills / partial payments | Cashier/Admin → Counter & bills → Finalize → Payments & splits। Equal, ordering customer/device, exact amount বা whole-item quantity দিয়ে ভাগ। প্রতিটি receipt একই bill balance কমায়; পুরোটা পরিশোধের পরই table বন্ধ হয়।           |
+| SSLCOMMERZ integration         | Guest → My orders → final table bill → online checkout। Provider verification/IPN, duplicate protection, held amounts ও staff reconciliation। নিজের merchant credentials ও public HTTPS callback configure করতে হবে।            |
+| Customer accounts              | Header-এর account icon → registration/login, profile, password change, points ও paginated order history। Order again বর্তমান দাম/options/availability যাচাই করে review করার জন্য cart প্রস্তুত করে। Guest QR ordering আগের মতোই আছে। |
+| Coupons / loyalty              | Admin → Coupons & loyalty। Guest account → offers; My orders → table bill → coupon/points নির্বাচন, bill finalize হওয়ার আগে। Expiry, minimum spend, global/account usage limits ও points ledger আছে।                             |
+| Reservations / waiting list    | Website → Reserve a table; Staff → Reservations & queue। সময়/party size অনুযায়ী booking, cancellation, no-show, reserved seating, waiting-list call/seat ও table capacity/settings।                                              |
 
 ### v2.1 থেকে data রেখে upgrade
 
@@ -104,12 +118,12 @@ SSLCOMMERZ-এর implementation আছে; merchant account/credentials ছা�
 
 আগের React v2-এর design, menu, cart, billing, reviews, events ও technology stack রাখা হয়েছে। v2.1 release-এ যোগ হওয়া ফিচারগুলো v2.2-তেও রাখা হয়েছে:
 
-| ফিচার | ব্যবহার |
-|---|---|
-| Waiter / bill requests | সক্রিয় টেবিলের menu থেকে request; একই type-এর pending request দুই ফোন থেকে করলেও একটিই থাকে। Guest `Waiting → Acknowledged → Completed` দেখেন। Admin/waiter-এর Floor requests-এ acknowledge/resolve ও সব tab থেকে pending badge/optional sound পাওয়া যায়। |
-| Food availability | Admin/kitchen → **Food availability** থেকে এক ক্লিকে sold out/available। Kitchen price বা অন্য menu details বদলাতে পারে না। Guest menu প্রতি ৫ সেকেন্ডে refresh হয়; checkout transaction availability/price আবার যাচাই করে। Accepted order নিজে থেকে বাতিল হয় না। |
-| Sales reports | Admin/cashier → **Sales reports**: date range, daily/monthly grouping, collected amount, food sales, service charge, average paid bill, paid-bill count, popular dishes ও payment breakdown। Summary/periods/items/payments-এর আলাদা CSV। |
-| Kitchen timers / alerts | Order desk-এ total ও বর্তমান stage-এর timer। Awaiting staff ৫, queued ১০, cooking ২০, ready ৫ মিনিট পার হলে delayed। Admin/kitchen/waiter-কে নিজ station-এর নতুন ticket/change update এবং admin/waiter-কে নতুন floor request দেখায়। **Enable alerts** ক্লিক করলে sound চালু হয়। |
+| ফিচার                        | ব্যবহার                                                                                                                                                                                                                                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Waiter / bill requests       | সক্রিয় টেবিলের menu থেকে request; একই type-এর pending request দুই ফোন থেকে করলেও একটিই থাকে। Guest `Waiting → Acknowledged → Completed` দেখেন। Admin/waiter-এর Floor requests-এ acknowledge/resolve ও সব tab থেকে pending badge/optional sound পাওয়া যায়।                                                       |
+| Food availability            | Admin/kitchen → **Food availability** থেকে এক ক্লিকে sold out/available। Kitchen price বা অন্য menu details বদলাতে পারে না। Guest menu প্রতি ৫ সেকেন্ডে refresh হয়; checkout transaction availability/price আবার যাচাই করে। Accepted order নিজে থেকে বাতিল হয় না।                                                 |
+| Sales reports                | Admin/cashier → **Sales reports**: date range, daily/monthly grouping, collected amount, food sales, service charge, average paid bill, paid-bill count, popular dishes ও payment breakdown। Summary/periods/items/payments-এর আলাদা CSV।                                                                     |
+| Kitchen timers / alerts      | Order desk-এ total ও বর্তমান stage-এর timer। Awaiting staff ৫, queued ১০, cooking ২০, ready ৫ মিনিট পার হলে delayed। Admin/kitchen/waiter-কে নিজ station-এর নতুন ticket/change update এবং admin/waiter-কে নতুন floor request দেখায়। **Enable alerts** ক্লিক করলে sound চালু হয়।                                    |
 | Order changes / cancellation | Guest **My orders → Request changes / Request cancellation**। `placed`/`queued` অবস্থাতেই করা যায়। Quantity (০ দিলে line বাদ) ও kitchen note পরিবর্তন করা যায়; কারণ প্রয়োজন। Admin Order desk-এ reason দিয়ে approve/reject করবেন। Pending থাকলে cooking/dispatch বন্ধ থাকে; অনুমোদনের আগে মূল order/total বদলায় না। |
 
 ### বর্তমান v2 থেকে upgrade — আগে এটি পড়ুন
@@ -152,14 +166,14 @@ npm run build
 npm start
 ```
 
-| কমান্ড | কাজ / প্রত্যাশিত ফল |
-|---|---|
-| `npm ci` | Lockfile অনুযায়ী React, Express ও dependencies install করে |
-| `npm run setup` | `.env` এবং আলাদা staff password তৈরি করে; পুরোনো non-empty configuration রাখে |
-| `docker compose up -d --wait` | Local MongoDB replica set চালু করে, primary হওয়ার জন্য অপেক্ষা করে |
-| `npm run seed -- --demo` | ছয়টি খাবার, ছয়টি টেবিল, চার role ও চিহ্নিত sample review যোগ করে |
-| `npm run build` | React production build ও local fonts প্রস্তুত করে |
-| `npm start` | Express server চালু করে; terminal খোলা রাখুন |
+| কমান্ড                         | কাজ / প্রত্যাশিত ফল                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `npm ci`                      | Lockfile অনুযায়ী React, Express ও dependencies install করে                    |
+| `npm run setup`               | `.env` এবং আলাদা staff password তৈরি করে; পুরোনো non-empty configuration রাখে |
+| `docker compose up -d --wait` | Local MongoDB replica set চালু করে, primary হওয়ার জন্য অপেক্ষা করে              |
+| `npm run seed -- --demo`      | ছয়টি খাবার, ছয়টি টেবিল, চার role ও চিহ্নিত sample review যোগ করে              |
+| `npm run build`               | React production build ও local fonts প্রস্তুত করে                               |
+| `npm start`                   | Express server চালু করে; terminal খোলা রাখুন                                   |
 
 - Website: [http://localhost:3000](http://localhost:3000)
 - Staff: [http://localhost:3000/staff](http://localhost:3000/staff)
@@ -189,18 +203,18 @@ npm run tables -- T01
 
 ## কী তৈরি হয়েছে
 
-| ডকুমেন্টের অংশ | এই সংস্করণের কাজ |
-|---|---|
-| Brand website | Burgundy/gold design, animated hero, local food images, story, private dining, responsive layout, BN/EN |
-| Menu | Categories, search, price/rating sort, favourites, details, availability, variants ও add-ons |
-| QR ও session | Physical table QR, staff open/close visit, context, QR rotate ও print command |
-| Order | Cart, note, server-side price/option validation, retry deduplication, history/progress |
+| ডকুমেন্টের অংশ    | এই সংস্করণের কাজ                                                                                                                                                        |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Brand website   | Burgundy/gold design, animated hero, local food images, story, private dining, responsive layout, BN/EN                                                                |
+| Menu            | Categories, search, price/rating sort, favourites, details, availability, variants ও add-ons                                                                           |
+| QR ও session    | Physical table QR, staff open/close visit, context, QR rotate ও print command                                                                                          |
+| Order           | Cart, note, server-side price/option validation, retry deduplication, history/progress                                                                                 |
 | Kitchen ও floor | Admin accept/decline, pre-cooking guest change approvals, kitchen stage timers, waiter serving, manual order, acknowledged service/bill requests, optional sound alert |
-| Billing | একই visit-এর bill, coupon/points, equal/customer/item/amount splits, partial counter receipts, held online attempts, exact remaining balance ও printable receipt |
-| Feedback | Served-item ownership, one feedback per dish/order, stars, liked/improve fields, public/private consent, photo, moderation/reply |
-| Events | Inquiry, spaces/packages/capacity, quote versions, expiring holds, shared-space ও cleanup overlap check, guest acceptance, verified deposit record, status |
-| Admin | Live overview, paid sales reports/CSV, menu create/edit, kitchen availability controls, ordering pause, restaurant settings, role-based queues |
-| Menu guide | Budget, group size ও spice অনুযায়ী বর্তমান মেনু থেকে deterministic matching; external AI service লাগে না |
+| Billing         | একই visit-এর bill, coupon/points, equal/customer/item/amount splits, partial counter receipts, held online attempts, exact remaining balance ও printable receipt       |
+| Feedback        | Served-item ownership, one feedback per dish/order, stars, liked/improve fields, public/private consent, photo, moderation/reply                                       |
+| Events          | Inquiry, spaces/packages/capacity, quote versions, expiring holds, shared-space ও cleanup overlap check, guest acceptance, verified deposit record, status             |
+| Admin           | Live overview, paid sales reports/CSV, menu create/edit, kitchen availability controls, ordering pause, restaurant settings, role-based queues                         |
+| Menu guide      | Budget, group size ও spice অনুযায়ী বর্তমান মেনু থেকে deterministic matching; external AI service লাগে না                                                                  |
 
 **পরবর্তী integration/কাজ:** external courier dispatch/GPS, multi-branch/multi-tenant support ও event configuration editor। Menu guide deterministic matching ব্যবহার করে। Counter-এর bKash/Nagad/card selection বাস্তবে পাওয়া টাকা **রেকর্ড** করে; online টাকা কাটার জন্য পৃথক SSLCOMMERZ checkout আছে। Event deposit-ও staff-এর verified record; v2.4-এ এর approval/return workflow আছে।
 
@@ -238,30 +252,30 @@ npm run dev
 
 একই Express server-এ Vite development middleware ও Node watch চলে; UI edit live refresh হয়। Production যাচাই: `npm run build` তারপর `npm start`। Dev mode শুধু স্থানীয় development-এর জন্য।
 
-| ফাইল/ফোল্ডার | দায়িত্ব |
-|---|---|
-| `client/src/main.jsx` | React router ও app root |
-| `client/src/pages/` | Home, menu, orders/reviews, events, story, receipt, staff |
-| `client/src/components/` | Navigation, cards, option modal, cart, menu matcher, shared UI |
-| `client/src/lib/` | API client, guest/cart/language state, polling |
-| `client/src/styles/` | Responsive guest/staff CSS; reduced-motion support |
-| `server/app.js`, `features.js` | Express routes, role gates, guest/staff features |
-| `server/orders.js`, `order-changes.js`, `billing.js` | Validation/status, approved changes, table/dish locks, exact totals/payment |
-| `server/service-requests.js`, `reports.js` | Table request acknowledgements and settled sales/CSV |
-| `server/customer.js`, `rewards.js` | Customer sessions/history, coupons and points ledger |
-| `server/payments.js`, `bill-view.js`, `money.js` | Payment ledger, splits, exact paisa allocation and views |
-| `server/gateway.js`, `commerce.js` | SSLCOMMERZ checkout/verification, IPN, bill ownership |
-| `server/reservations.js` | Table booking, availability, waiting list and seating |
-| `server/account-mail.js`, `staff-accounts.js` | Verification/recovery mail, one-use tokens, individual staff and session revocation |
-| `server/refunds.js`, `invoices.js` | Approved receipt refunds, provider reconciliation, credit notes, tax/invoice snapshots |
-| `server/inventory.js` | Ingredient stocks, recipes, kitchen commitment, changes/releases and movement ledger |
-| `server/events.js` | Requests, quotes, expiring slot holds ও deposit records |
-| `server/security.js` | Password hashing, signed cookies, staff sessions |
-| `server/db.js`, `restaurant.js` | Collections/indexes ও settings/defaults |
-| `scripts/` | Setup, non-reset seed, fonts, QR generation |
-| `public/assets/` | Local fonts, illustrative food/interior images |
-| `dist/` | Included production frontend build; source edit করলে rebuild |
-| `test/workflow.test.js`, `operations.test.js` | Existing and v2.1 MongoDB integration tests |
+| ফাইল/ফোল্ডার                                          | দায়িত্ব                                                                                 |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `client/src/main.jsx`                                | React router ও app root                                                                |
+| `client/src/pages/`                                  | Home, menu, orders/reviews, events, story, receipt, staff                              |
+| `client/src/components/`                             | Navigation, cards, option modal, cart, menu matcher, shared UI                         |
+| `client/src/lib/`                                    | API client, guest/cart/language state, polling                                         |
+| `client/src/styles/`                                 | Responsive guest/staff CSS; reduced-motion support                                     |
+| `server/app.js`, `features.js`                       | Express routes, role gates, guest/staff features                                       |
+| `server/orders.js`, `order-changes.js`, `billing.js` | Validation/status, approved changes, table/dish locks, exact totals/payment            |
+| `server/service-requests.js`, `reports.js`           | Table request acknowledgements and settled sales/CSV                                   |
+| `server/customer.js`, `rewards.js`                   | Customer sessions/history, coupons and points ledger                                   |
+| `server/payments.js`, `bill-view.js`, `money.js`     | Payment ledger, splits, exact paisa allocation and views                               |
+| `server/gateway.js`, `commerce.js`                   | SSLCOMMERZ checkout/verification, IPN, bill ownership                                  |
+| `server/reservations.js`                             | Table booking, availability, waiting list and seating                                  |
+| `server/account-mail.js`, `staff-accounts.js`        | Verification/recovery mail, one-use tokens, individual staff and session revocation    |
+| `server/refunds.js`, `invoices.js`                   | Approved receipt refunds, provider reconciliation, credit notes, tax/invoice snapshots |
+| `server/inventory.js`                                | Ingredient stocks, recipes, kitchen commitment, changes/releases and movement ledger   |
+| `server/events.js`                                   | Requests, quotes, expiring slot holds ও deposit records                                |
+| `server/security.js`                                 | Password hashing, signed cookies, staff sessions                                       |
+| `server/db.js`, `restaurant.js`                      | Collections/indexes ও settings/defaults                                                |
+| `scripts/`                                           | Setup, non-reset seed, fonts, QR generation                                            |
+| `public/assets/`                                     | Local fonts, illustrative food/interior images                                         |
+| `dist/`                                              | Included production frontend build; source edit করলে rebuild                           |
+| `test/workflow.test.js`, `operations.test.js`        | Existing and v2.1 MongoDB integration tests                                            |
 
 MongoDB-তে menu, table/session, order snapshots, reviews, staff/sessions, bills, events, service requests, settings ও sensitive-action audit records থাকে। Order/close/finalize/pay একসঙ্গে হলে transaction table document lock দিয়ে সংঘর্ষ সামলায়। Event holds একই venue lock ব্যবহার করে। Staff queue ৩ সেকেন্ড ও guest orders/table bill ৪ সেকেন্ড পরপর refresh হয়; WebSocket নয়। Sales reports fully settled table bills-কে settlement date অনুযায়ী গণনা করে; mixed payment methods-এর actual receipt amounts আলাদা হয়। Unpaid partial receipts bill ledger-এ থাকে, report-এ settlement-এর আগে আসে না।
 
@@ -287,17 +301,17 @@ QR link share করা সম্ভব; active session চলাকালে st
 
 ## সাধারণ সমস্যা
 
-| সমস্যা | সমাধান |
-|---|---|
-| Missing configuration | `npm run setup`; `.env`-এর URI/origin দেখুন |
-| MongoDB connection refused | Docker Desktop চালু রাখুন; Compose health/27017 conflict দেখুন |
-| Transaction error | Standalone-এর বদলে replica set বা Atlas |
-| Frontend build missing | `npm run build` তারপর `npm start` |
-| Port 3000 busy | `.env`: `PORT=3001`, `APP_ORIGIN=http://localhost:3001`; restart, QR regenerate |
-| Table closed/QR invalid | Staff table open করুন; rotated QR-এর নতুন link/card |
-| Price/options changed | Menu refresh করে cart item আবার সঠিক option দিয়ে যোগ করুন |
-| Bill finalize হচ্ছে না | একই visit-এর unfinished ticket serve/cancel করুন |
-| `.env` password বদলিয়েও login হয় না | Existing password DB-তে hash করা; seed existing account reset করে না |
+| সমস্যা                               | সমাধান                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
+| Missing configuration               | `npm run setup`; `.env`-এর URI/origin দেখুন                                      |
+| MongoDB connection refused          | Docker Desktop চালু রাখুন; Compose health/27017 conflict দেখুন                     |
+| Transaction error                   | Standalone-এর বদলে replica set বা Atlas                                         |
+| Frontend build missing              | `npm run build` তারপর `npm start`                                               |
+| Port 3000 busy                      | `.env`: `PORT=3001`, `APP_ORIGIN=http://localhost:3001`; restart, QR regenerate |
+| Table closed/QR invalid             | Staff table open করুন; rotated QR-এর নতুন link/card                               |
+| Price/options changed               | Menu refresh করে cart item আবার সঠিক option দিয়ে যোগ করুন                        |
+| Bill finalize হচ্ছে না               | একই visit-এর unfinished ticket serve/cancel করুন                                 |
+| `.env` password বদলিয়েও login হয় না | Existing password DB-তে hash করা; seed existing account reset করে না            |
 
 ### Podman-এ পুরোনো replica-set initialization সমস্যা হলে
 

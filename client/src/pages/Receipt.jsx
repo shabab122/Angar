@@ -1,3 +1,4 @@
+import { branchUrl } from "../lib/branch";
 import { useParams } from "react-router-dom";
 import { CheckCircle2, Printer } from "lucide-react";
 import { useApp } from "../lib/AppContext";
@@ -134,8 +135,7 @@ export function Receipt({ staff = false, bill: provided, thermal = false }) {
         </p>
         {bill.payment?.reference && (
           <p className="receipt-reference">
-            {t("Payment reference", "পেমেন্ট রেফারেন্স")}{" "}
-            {bill.payment.reference}
+            {t("Payment reference", "পেমেন্ট রেফারেন্স")} {bill.payment.reference}
           </p>
         )}
         {bill.balanceMinor > 0 && (
@@ -169,7 +169,7 @@ export function Receipt({ staff = false, bill: provided, thermal = false }) {
               className="button button-secondary"
               target="_blank"
               rel="noreferrer"
-              href={"/staff/receipt/" + bill.id + "/thermal"}
+              href={branchUrl("/staff/receipt/" + bill.id + "/thermal")}
             >
               80 mm thermal receipt
             </a>

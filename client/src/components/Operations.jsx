@@ -1,3 +1,4 @@
+import { branchUrl } from "../lib/branch";
 import { useEffect, useRef, useState } from "react";
 import {
   BellRing,
@@ -136,10 +137,7 @@ export function GuestServiceControls() {
                 : t("Waiter", "স্টাফ")}
             :{" "}
             {row.status === "acknowledged"
-              ? t(
-                  "Staff acknowledged; on the way",
-                  "স্টাফ অনুরোধ দেখেছেন; আসছেন",
-                )
+              ? t("Staff acknowledged; on the way", "স্টাফ অনুরোধ দেখেছেন; আসছেন")
               : t("Waiting for staff", "স্টাফের অপেক্ষায়")}
           </small>
         ))}
@@ -410,9 +408,9 @@ export function SalesReportsPanel() {
               <a
                 className="button button-secondary button-small"
                 key={id}
-                href={
-                  "/api/staff/reports/sales.csv?" + params + "&section=" + id
-                }
+                href={branchUrl(
+                  "/api/staff/reports/sales.csv?" + params + "&section=" + id,
+                )}
                 download
               >
                 <Download size={14} />

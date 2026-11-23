@@ -1,3 +1,4 @@
+import { getBranchRuntime, branchSlug } from "../server/branches.js";
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
@@ -9,14 +10,20 @@ import {
   verifyBackup,
   restoreBackup,
 } from "../server/backups.js";
-const config = loadConfig(),
-  args = process.argv.slice(2),
+let config = loadConfig();
+const args = process.argv.slice(2),
   action = args.shift();
 const value = (flag) => {
   const index = args.indexOf(flag);
   return index >= 0 ? args[index + 1] : null;
 };
-const store = await connectDatabase(config);
+const root = await connectDatabase(config);
+const branchId = value("--branch") || "main";
+if (!branchSlug.safeParse(branchId).success)
+  throw new Error("Use --branch branch-code.");
+const context = await getBranchRuntime(root, config).get(branchId);
+const store = context.store;
+config = context.config;
 try {
   if (action === "create") {
     const id = "BK-" + randomBytes(16).toString("hex");
@@ -64,5 +71,5 @@ try {
       "Use backup:create, backup:verify -- --id BACKUP_ID, or backup:restore with a fresh target database.",
     );
 } finally {
-  await store.client.close();
+  await root.client.close();
 }

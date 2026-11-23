@@ -1,3 +1,4 @@
+import { branchPath } from "./branches.js";
 import { randomBytes } from "node:crypto";
 import express from "express";
 import { rateLimit } from "express-rate-limit";
@@ -369,7 +370,11 @@ export function registerGatewayCallbacks(app, store, config) {
     const intent = /^AK[0-9a-f]{24}$/.test(req.params.id)
       ? await store.gatewayTransactions.findOne({ _id: req.params.id })
       : null;
-    if (!intent) return res.redirect(303, config.origin + "/orders");
+    if (!intent)
+      return res.redirect(
+        303,
+        config.origin + branchPath("/orders", config.branchId),
+      );
     try {
       const valId =
         typeof req.body?.val_id === "string"
@@ -385,10 +390,10 @@ export function registerGatewayCallbacks(app, store, config) {
     res.redirect(
       303,
       config.origin +
-        "/payment?bill=" +
-        intent.billId +
-        "&transaction=" +
-        intent._id,
+        branchPath(
+          "/payment?bill=" + intent.billId + "&transaction=" + intent._id,
+          config.branchId,
+        ),
     );
   });
   app.use("/api/payments/sslcommerz", router);
@@ -543,7 +548,11 @@ export function registerGuestGateway(api, store, config, requireId) {
     if (intent.existing) return res.json({ transaction: view(intent.record) });
     const record = intent.record,
       returnUrl =
-        client.publicOrigin + "/api/payments/sslcommerz/return/" + record._id;
+        client.publicOrigin +
+        branchPath(
+          "/api/payments/sslcommerz/return/" + record._id,
+          config.branchId,
+        );
     try {
       const response = await client.create({
         total_amount: (record.amountMinor / 100).toFixed(2),
@@ -552,7 +561,9 @@ export function registerGuestGateway(api, store, config, requireId) {
         success_url: returnUrl,
         fail_url: returnUrl,
         cancel_url: returnUrl,
-        ipn_url: client.publicOrigin + "/api/payments/sslcommerz/ipn",
+        ipn_url:
+          client.publicOrigin +
+          branchPath("/api/payments/sslcommerz/ipn", config.branchId),
         cus_name: input.name,
         cus_email: input.email,
         cus_phone: input.phone,
