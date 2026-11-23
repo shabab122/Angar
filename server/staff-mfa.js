@@ -1,4 +1,8 @@
-import { hasBranchAccess, assertManageStaff } from "./access.js";
+import {
+  hasBranchAccess,
+  assertManageStaff,
+  effectiveStaff,
+} from "./access.js";
 import {
   createCipheriv,
   createDecipheriv,
@@ -25,16 +29,19 @@ import { staffIdentity } from "./staff-accounts.js";
 const pendingCookie = "angar_staff_pending",
   now = (config) => (config.mfaNow ? config.mfaNow() : Date.now());
 const keyReady = (config) => /^[a-f0-9]{64}$/i.test(config.staffMfa?.key || "");
-export const staffPayload = (user, config) => ({
-  ...staffIdentity(user),
-  branchId: config.branchId || "main",
-  mfaEnabled: Boolean(user.mfa?.enabled),
-  mfaSetupRequired: Boolean(
-    config.staffMfa?.requireAdmin &&
-    user.role === "admin" &&
-    !user.mfa?.enabled,
-  ),
-});
+export const staffPayload = (user, config) => {
+  const current = effectiveStaff(user, config.branchId || "main");
+  return {
+    ...staffIdentity(current),
+    branchId: config.branchId || "main",
+    mfaEnabled: Boolean(user.mfa?.enabled),
+    mfaSetupRequired: Boolean(
+      config.staffMfa?.requireAdmin &&
+      current.role === "admin" &&
+      !user.mfa?.enabled,
+    ),
+  };
+};
 function encrypt(config, staffId, secret) {
   if (!keyReady(config))
     throw new HttpError(
@@ -405,7 +412,10 @@ export function registerStaffMfa(api, store, config, requireAdmin, requireId) {
       enabled: Boolean(user.mfa?.enabled),
       configured: keyReady(config),
       recoveryCodesRemaining: user.mfa?.recovery?.length || 0,
-      required: Boolean(config.staffMfa?.requireAdmin && user.role === "admin"),
+      required: Boolean(
+        config.staffMfa?.requireAdmin &&
+        effectiveStaff(user, store.branchId).role === "admin",
+      ),
       enrolledAt: user.mfa?.enrolledAt || null,
     });
   });
@@ -631,11 +641,15 @@ export function registerStaffMfa(api, store, config, requireAdmin, requireId) {
       );
     const result = await transaction(store, async (session) => {
       const admin = await store.staff.findOneAndUpdate(
-        { _id: actor._id, active: true, role: "admin" },
+        { _id: actor._id, active: true },
         { $inc: { mfaRevision: 1 } },
         { session, returnDocument: "after" },
       );
-      if (!admin || (admin.authVersion || 0) !== (actor.authVersion || 0))
+      if (
+        !admin ||
+        (admin.authVersion || 0) !== (actor.authVersion || 0) ||
+        effectiveStaff(admin, store.branchId).role !== "admin"
+      )
         throw new HttpError(401, "STAFF_REQUIRED", "Your access changed.");
       if (admin.mfa?.enabled) {
         const checked = await checkFactor(

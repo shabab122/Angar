@@ -88,6 +88,14 @@ try {
       },
       { session },
     );
+    await root.transfers.updateMany(
+      {
+        $or: [{ fromBranch: slug }, { toBranch: slug }],
+        status: { $in: ["requested", "approved", "dispatched", "received"] },
+      },
+      { $set: { needsRecovery: true } },
+      { session },
+    );
     await root.audit.insertOne(
       {
         type: "branch.recovered",

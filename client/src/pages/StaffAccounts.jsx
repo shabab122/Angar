@@ -268,6 +268,16 @@ export function StaffAccounts({ user: currentUser }) {
               Branches: {(user.branchIds || ["main"]).join(", ")} · Restricted
               actions: {user.denied?.length || 0}
             </p>
+            {Object.keys(user.branchAccess || {}).length > 0 && (
+              <div className="v28-profile-summary">
+                {Object.entries(user.branchAccess).map(([branch, profile]) => (
+                  <span key={branch}>
+                    {branch}: {profile.role} ·{" "}
+                    {profile.access?.denied?.length || 0} restricted actions
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="commerce-inline-actions">
               {currentUser?.platformAdmin &&
                 user.username !== currentUser.username && (

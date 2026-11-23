@@ -1,3 +1,4 @@
+import { registerStockTransfers } from "./stock-transfers.js";
 import { registerCourierGuest, registerCourierStaff } from "./courier.js";
 import { hasPermission } from "./access.js";
 import { registerStocktakes } from "./stocktakes.js";
@@ -285,6 +286,7 @@ export function registerStaffFeatures(
   registerPurchasing(api, store, billingRoles, requireAdmin, requireId);
   registerStaffNotifications(api, store, config, requireAdmin);
   registerCourierStaff(api, store, config, requireId);
+  registerStockTransfers(api, store, config, requireId);
   registerStaffFulfillment(
     api,
     store,

@@ -430,6 +430,21 @@ export function registerIngredientBatches(
           "INVENTORY_UPDATED",
           "This ingredient changed or already uses batch tracking. Refresh first.",
         );
+      if (
+        await store.transfers.findOne(
+          {
+            toBranch: store.branchId || "main",
+            status: "dispatched",
+            "lines.targetIngredientId": input.ingredientId,
+          },
+          { session },
+        )
+      )
+        throw new HttpError(
+          409,
+          "TRANSFER_PENDING",
+          "Finish incoming stock transfers before enabling batch tracking for this ingredient.",
+        );
       const opening = input.batches || [
         { ...input.batch, quantity: ingredient.stock },
       ];
@@ -467,12 +482,10 @@ export function registerIngredientBatches(
       );
       return rows;
     });
-    res
-      .status(201)
-      .json({
-        batch: batchView(row[0]),
-        batches: row.map((item) => batchView(item)),
-      });
+    res.status(201).json({
+      batch: batchView(row[0]),
+      batches: row.map((item) => batchView(item)),
+    });
   });
   api.post("/inventory/batches/:id/status", requireAdmin, async (req, res) => {
     const input = body(

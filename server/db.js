@@ -13,6 +13,11 @@ export async function connectDatabase(config, sharedClient = null) {
       config.identityDatabase || config.mongoDatabase,
     );
     const collections = {
+      transfers: identityDb.collection("stockTransfers"),
+      transferEntries: db.collection("stockTransferEntries"),
+      monitoringIncidents: identityDb.collection("monitoringIncidents"),
+      monitoringDeliveries: identityDb.collection("monitoringDeliveries"),
+      monitoringInstances: identityDb.collection("monitoringInstances"),
       courierJobs: db.collection("courierJobs"),
       courierWebhookEvents: db.collection("courierWebhookEvents"),
       branches: identityDb.collection("branches"),
@@ -307,6 +312,39 @@ export async function connectDatabase(config, sharedClient = null) {
         },
         { upsert: true },
       );
+    await collections.transfers.createIndex(
+      { fromBranch: 1, requestKey: 1 },
+      { unique: true },
+    );
+    await collections.transferEntries.createIndex({
+      transferId: 1,
+      direction: 1,
+    });
+    await collections.transfers.createIndex({
+      toBranch: 1,
+      status: 1,
+      createdAt: -1,
+    });
+    await collections.monitoringDeliveries.createIndex({
+      status: 1,
+      createdAt: 1,
+    });
+    await collections.monitoringInstances.createIndex(
+      { expiresAt: 1 },
+      { expireAfterSeconds: 0 },
+    );
+    await collections.monitoringIncidents.createIndex({
+      status: 1,
+      lastSeenAt: -1,
+    });
+    await collections.monitoringIncidents.createIndex(
+      { expiresAt: 1 },
+      { expireAfterSeconds: 0 },
+    );
+    await collections.monitoringDeliveries.createIndex(
+      { expiresAt: 1 },
+      { expireAfterSeconds: 0 },
+    );
     await collections.courierJobs.createIndex(
       { reference: 1 },
       {
@@ -325,7 +363,11 @@ export async function connectDatabase(config, sharedClient = null) {
         partialFilterExpression: { requestKey: { $type: "string" } },
       },
     );
-    for (const id of ["branch-setup-lock", "staff-access-lock"])
+    for (const id of [
+      "branch-setup-lock",
+      "staff-access-lock",
+      "transfer-setup-lock",
+    ])
       await collections.identitySettings.updateOne(
         { _id: id },
         { $setOnInsert: { revision: 0 } },

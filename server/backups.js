@@ -1,3 +1,4 @@
+import { effectiveStaff } from "./access.js";
 import path from "node:path";
 import {
   mkdir,
@@ -44,6 +45,8 @@ const transient = new Set([
   "printJobs",
   "staffAlertDeliveries",
   "courierWebhookEvents",
+  "monitoringInstances",
+  "monitoringDeliveries",
 ]);
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const defaults = { enabled: false, everyHours: 24, keep: 7, nextAt: null };
@@ -89,7 +92,6 @@ export async function administratorPassword(store, req, password) {
   const user = await store.staff.findOne({
     _id: req.staff._id,
     active: true,
-    role: "admin",
   });
   if (
     !user ||
@@ -455,6 +457,19 @@ export async function restoreBackup(
       $unset: { databaseOverride: "" },
     },
   );
+  await target
+    .collection("stockTransfers")
+    .updateMany(
+      { status: { $in: ["requested", "approved", "dispatched"] } },
+      { $set: { needsRecovery: true } },
+    );
+  await target
+    .collection("identitySettings")
+    .updateOne(
+      { _id: "monitoring-policy" },
+      { $set: { emailEnabled: false } },
+      { upsert: true },
+    );
   await target.collection("courierJobs").updateMany(
     {},
     {

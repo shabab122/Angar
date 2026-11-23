@@ -98,16 +98,66 @@ export const permissionCatalog = [
 permissionCatalog.push(
   ["branches.manage", "Create / edit restaurant branches", ["admin"]],
   ["reviews.manage", "Moderate guest reviews", ["admin"]],
+  ["branches.dashboard", "View consolidated branch performance", ["admin"]],
+  [
+    "transfers.view",
+    "View transfers involving this branch",
+    ["admin", "kitchen"],
+  ],
+  [
+    "transfers.request",
+    "Request stock transfers and view destination ingredient catalogue",
+    ["admin", "kitchen"],
+  ],
+  ["transfers.approve", "Approve outgoing stock transfers", ["admin"]],
+  [
+    "transfers.dispatch",
+    "Count and dispatch approved stock transfers",
+    ["admin", "kitchen"],
+  ],
+  [
+    "transfers.receive",
+    "Count and receive incoming stock transfers",
+    ["admin", "kitchen"],
+  ],
+  ["monitoring.view", "View technical incidents and service status", ["admin"]],
+  [
+    "monitoring.manage",
+    "Configure and acknowledge technical incident alerts",
+    ["admin"],
+  ],
 );
 export const permissionKeys = permissionCatalog.map(([key]) => key);
 export const memberBranches = (user) =>
   Array.isArray(user?.branchIds) ? user.branchIds : ["main"];
-export const isPlatformAdmin = (user) =>
-  Boolean(
-    user?.active !== false &&
-    user?.role === "admin" &&
-    memberBranches(user).includes("main"),
+export const identityStaff = (user) =>
+  user?.identity ? { ...user, ...user.identity, identity: undefined } : user;
+export const isPlatformAdmin = (user) => {
+  const raw = identityStaff(user);
+  return Boolean(
+    raw?.active !== false &&
+    raw?.role === "admin" &&
+    memberBranches(raw).includes("main"),
   );
+};
+export function effectiveStaff(user, branch = "main") {
+  if (!user) return user;
+  const raw = identityStaff(user),
+    profile = raw.branchAccess?.[branch];
+  return {
+    ...raw,
+    role: profile?.role || raw.role,
+    access: profile?.access || raw.access,
+    branchId: branch,
+    identity: {
+      role: raw.role,
+      access: raw.access,
+      branchIds: raw.branchIds,
+      branchAccess: raw.branchAccess,
+      active: raw.active,
+    },
+  };
+}
 export const hasBranchAccess = (user, branch = "main") =>
   Boolean(
     user &&
@@ -124,17 +174,18 @@ export const capabilities = (user) =>
   Object.fromEntries(
     permissionKeys.map((key) => [key, hasPermission(user, key)]),
   );
-export function assertManageStaff(actor, target, branch = "main") {
-  if (
-    !isPlatformAdmin(actor) &&
-    (target.role === "admin" ||
-      memberBranches(target).length !== 1 ||
-      !memberBranches(target).includes(branch))
-  )
+const limitPermissions = {
+  refundApproval: "refund.approve",
+  purchaseApproval: "purchase.approve",
+  purchasePayment: "purchase.pay",
+  expenseApproval: "expense.approve",
+};
+function assertDelegation(actor, target) {
+  if (actor.role !== "admin" && actor.role !== target.role)
     throw new HttpError(
       403,
-      "STAFF_SCOPE",
-      "A main-branch administrator manages administrators and accounts shared with other branches.",
+      "STAFF_PRIVILEGE",
+      "An administrator with sufficient access in this branch must grant a different branch role.",
     );
   const denied = actor.access?.denied || [];
   if (denied.some((key) => hasPermission(target, key)))
@@ -143,18 +194,11 @@ export function assertManageStaff(actor, target, branch = "main") {
       "STAFF_PRIVILEGE",
       "This account has broader action access. Ask an unrestricted main-branch administrator to manage it.",
     );
-  const actions = {
-    refundApproval: "refund.approve",
-    purchaseApproval: "purchase.approve",
-    purchasePayment: "purchase.pay",
-    expenseApproval: "expense.approve",
-  };
-  for (const [key, permission] of Object.entries(actions)) {
+  for (const [key, permission] of Object.entries(limitPermissions)) {
     const limit = actor.access?.limitsMinor?.[key],
       targetLimit = target.access?.limitsMinor?.[key];
     if (
-      limit !== undefined &&
-      limit !== null &&
+      limit != null &&
       hasPermission(target, permission) &&
       (targetLimit == null || targetLimit > limit)
     )
@@ -164,6 +208,60 @@ export function assertManageStaff(actor, target, branch = "main") {
         "This account has a higher amount approval limit. Ask an authorized main-branch administrator to manage it.",
       );
   }
+}
+export function assertManageStaff(actor, target, branch = "main") {
+  const rawTarget = identityStaff(target),
+    rawActor = identityStaff(actor),
+    currentTarget = effectiveStaff(rawTarget, branch);
+  if (
+    !isPlatformAdmin(rawActor) &&
+    (rawTarget.role === "admin" ||
+      currentTarget.role === "admin" ||
+      memberBranches(rawTarget).length !== 1 ||
+      !memberBranches(rawTarget).includes(branch))
+  )
+    throw new HttpError(
+      403,
+      "STAFF_SCOPE",
+      "A main-branch administrator manages administrators and accounts shared with other branches.",
+    );
+  assertDelegation(effectiveStaff(rawActor, branch), currentTarget);
+  if (isPlatformAdmin(rawActor)) {
+    assertDelegation(rawActor, rawTarget);
+    for (const slug of new Set([
+      ...memberBranches(rawTarget),
+      ...Object.keys(rawTarget.branchAccess || {}),
+    ]))
+      assertDelegation(
+        effectiveStaff(rawActor, slug),
+        effectiveStaff(rawTarget, slug),
+      );
+  }
+}
+export async function assertStaffAction(store, actor, permission, session) {
+  const raw = await store.staff.findOneAndUpdate(
+    { _id: actor._id, active: true },
+    { $inc: { actionRevision: 1 } },
+    { session, returnDocument: "after" },
+  );
+  if (
+    !raw ||
+    (raw.authVersion || 0) !== (actor.authVersion || 0) ||
+    !hasBranchAccess(raw, store.branchId || "main")
+  )
+    throw new HttpError(
+      401,
+      "STAFF_REQUIRED",
+      "Your access changed. Sign in again.",
+    );
+  const current = effectiveStaff(raw, store.branchId || "main");
+  if (!hasPermission(current, permission))
+    throw new HttpError(
+      403,
+      "PERMISSION_DENIED",
+      "Your current branch role cannot perform this action.",
+    );
+  return current;
 }
 export function mergeInheritedAccess(actor, role, existing = {}) {
   const inherited = inheritedAccess(actor, role),
@@ -177,6 +275,30 @@ export function mergeInheritedAccess(actor, role, existing = {}) {
     denied: [...new Set([...(existing.denied || []), ...inherited.denied])],
     limitsMinor,
   };
+}
+export async function assertMainStaffManager(store, replacement, session) {
+  const usable = (user) =>
+    isPlatformAdmin(user) &&
+    hasPermission(user, "staff.manage") &&
+    hasPermission(effectiveStaff(user, "main"), "staff.manage");
+  if (usable(replacement)) return;
+  const others = await store.staff
+    .find(
+      {
+        _id: { $ne: replacement._id },
+        active: true,
+        role: "admin",
+        $or: [{ branchIds: "main" }, { branchIds: { $exists: false } }],
+      },
+      { session },
+    )
+    .toArray();
+  if (!others.some(usable))
+    throw new HttpError(
+      409,
+      "LAST_ADMIN",
+      "Keep an active main-branch administrator with effective staff management access.",
+    );
 }
 export const inheritedAccess = (actor, role) => ({
   denied: permissionCatalog
@@ -198,21 +320,22 @@ export async function assertApprovalLimit(
       "APPROVAL_AMOUNT",
       "A stored exact-money total is required for this approval.",
     );
-  const current = await store.staff.findOneAndUpdate(
+  const raw = await store.staff.findOneAndUpdate(
     { _id: actor._id, active: true },
     { $inc: { approvalRevision: 1 } },
     { session, returnDocument: "after" },
   );
   if (
-    !current ||
-    (current.authVersion || 0) !== (actor.authVersion || 0) ||
-    !hasBranchAccess(current, store.branchId || "main")
+    !raw ||
+    (raw.authVersion || 0) !== (actor.authVersion || 0) ||
+    !hasBranchAccess(raw, store.branchId || "main")
   )
     throw new HttpError(
       401,
       "STAFF_REQUIRED",
       "Your access changed. Sign in again.",
     );
+  const current = effectiveStaff(raw, store.branchId || "main");
   const permission = {
     refundApproval: "refund.approve",
     purchaseApproval: "purchase.approve",
@@ -243,6 +366,17 @@ export function routePermission(req) {
   )
     return p === "/access-catalog" ? "staff.manage" : null;
   if (/^\/(?:reviews|review-media)(?:\/|$)/.test(p)) return "reviews.manage";
+  if (/^\/stock-transfers(?:\/|$)/.test(p)) {
+    if (p === "/stock-transfers/options") return "transfers.request";
+    if (m === "GET") return "transfers.view";
+    if (/\/receive$/.test(p)) return "transfers.receive";
+    if (/\/recovery$/.test(p)) return "transfers.approve";
+    if (/\/action$/.test(p))
+      return b.action === "dispatch"
+        ? "transfers.dispatch"
+        : "transfers.approve";
+    return "transfers.request";
+  }
   if (/^\/team(?:\/|$)/.test(p)) return "staff.manage";
   if (/^\/orders(?:\/|$)/.test(p)) {
     if (m === "GET") return "orders.view";

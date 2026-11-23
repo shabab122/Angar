@@ -1,4 +1,8 @@
+import { registerBranchStaff } from "./branch-staff.js";
 import {
+  assertMainStaffManager,
+  effectiveStaff,
+  identityStaff,
   memberBranches,
   isPlatformAdmin,
   capabilities,
@@ -27,6 +31,7 @@ export const staffIdentity = (user) => ({
   branchIds: memberBranches(user),
   platformAdmin: isPlatformAdmin(user),
   capabilities: capabilities(user),
+  platformCapabilities: capabilities(identityStaff(user)),
   limitsMinor: user.access?.limitsMinor || {},
   username: user.username,
   role: user.role,
@@ -41,6 +46,7 @@ const currentPassword = z.string().min(1).max(128);
 const userView = (user) => ({
   id: user._id.toString(),
   authVersion: user.authVersion || 0,
+  branchAccess: user.branchAccess || {},
   denied: user.access?.denied || [],
   ...staffIdentity(user),
   active: user.active,
@@ -51,9 +57,11 @@ async function reauthenticate(store, req, input) {
   const user = await store.staff.findOne({
     _id: req.staff._id,
     active: true,
-    role: "admin",
   });
-  if (!(await passwordMatches(input, user?.passwordHash)))
+  if (
+    effectiveStaff(user, store.branchId)?.role !== "admin" ||
+    !(await passwordMatches(input, user?.passwordHash))
+  )
     throw new HttpError(
       401,
       "PASSWORD_REQUIRED",
@@ -67,7 +75,7 @@ async function lockAdministrator(store, req, session) {
     { upsert: true, session },
   );
   const actor = await store.staff.findOneAndUpdate(
-    { _id: req.staff._id, active: true, role: "admin" },
+    { _id: req.staff._id, active: true },
     { $inc: { accessRevision: 1 } },
     { session, returnDocument: "after" },
   );
@@ -75,7 +83,7 @@ async function lockAdministrator(store, req, session) {
     !actor ||
     (actor.authVersion || 0) !== (req.staff.authVersion || 0) ||
     !hasBranchAccess(actor, store.branchId) ||
-    !hasPermission(actor, "staff.manage")
+    !hasPermission(effectiveStaff(actor, store.branchId), "staff.manage")
   )
     throw new HttpError(
       401,
@@ -104,6 +112,14 @@ export function registerStaffAccounts(
       },
     },
   });
+  registerBranchStaff(api, store, {
+    requireAdmin,
+    requireId,
+    view: userView,
+    limit,
+    reauthenticate,
+    lockAdministrator,
+  });
   api.get("/access-catalog", requireAdmin, async (req, res) =>
     res.json({
       permissions: permissionCatalog.map(([key, label, roles]) => ({
@@ -126,7 +142,10 @@ export function registerStaffAccounts(
     }),
   );
   api.patch("/team/:id/access", requireAdmin, limit, async (req, res) => {
-    if (!isPlatformAdmin(req.staff))
+    if (
+      !isPlatformAdmin(req.staff) ||
+      !hasPermission(identityStaff(req.staff), "staff.manage")
+    )
       throw new HttpError(
         403,
         "PLATFORM_ADMIN_REQUIRED",
@@ -189,10 +208,17 @@ export function registerStaffAccounts(
       assertManageStaff(req.staff, target, store.branchId);
       const after = {
         ...target,
+        branchAccess: Object.fromEntries(
+          Object.entries(target.branchAccess || {}).filter(([slug]) =>
+            input.branchIds.includes(slug),
+          ),
+        ),
         branchIds: input.branchIds,
         access: { denied: input.denied, limitsMinor: input.limitsMinor },
       };
       assertManageStaff(req.staff, after, store.branchId);
+      if (isPlatformAdmin(target))
+        await assertMainStaffManager(store, after, session);
       if (
         isPlatformAdmin(target) &&
         hasPermission(target, "staff.manage") &&
@@ -222,6 +248,7 @@ export function registerStaffAccounts(
           $set: {
             branchIds: input.branchIds,
             access: after.access,
+            branchAccess: after.branchAccess,
             updatedAt: new Date(),
           },
           $inc: { authVersion: 1 },
@@ -261,7 +288,13 @@ export function registerStaffAccounts(
       .limit(250)
       .toArray();
     res.json({
-      users: users.map(userView),
+      users: users
+        .filter(
+          (user) =>
+            isPlatformAdmin(req.staff) ||
+            effectiveStaff(user, store.branchId).role !== "admin",
+        )
+        .map(userView),
       roles: isPlatformAdmin(req.staff)
         ? STAFF_ROLES
         : STAFF_ROLES.filter((role) => role !== "admin"),
@@ -359,6 +392,16 @@ export function registerStaffAccounts(
       if (!existing)
         throw new HttpError(404, "NOT_FOUND", "Staff account not found.");
       assertManageStaff(req.staff, existing, store.branchId);
+      if (
+        !isPlatformAdmin(req.staff) &&
+        existing.branchAccess?.[store.branchId] &&
+        input.role !== existing.role
+      )
+        throw new HttpError(
+          403,
+          "STAFF_SCOPE",
+          "A main-branch administrator manages this explicit branch role.",
+        );
       if (input.role === "admin" && !isPlatformAdmin(req.staff))
         throw new HttpError(
           403,
@@ -408,6 +451,20 @@ export function registerStaffAccounts(
         );
       const changed =
         existing.role !== input.role || existing.active !== input.active;
+      if (isPlatformAdmin(existing))
+        await assertMainStaffManager(
+          store,
+          {
+            ...existing,
+            role: input.role,
+            active: input.active,
+            access:
+              existing.role !== input.role
+                ? mergeInheritedAccess(req.staff, input.role, existing.access)
+                : existing.access,
+          },
+          session,
+        );
       const user = await store.staff.findOneAndUpdate(
         { _id: existing._id },
         {

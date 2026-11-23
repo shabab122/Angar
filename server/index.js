@@ -3,6 +3,7 @@ import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { connectDatabase } from "./db.js";
 import { startBranchWorkers } from "./branch-worker.js";
+import { startMonitoring } from "./monitoring.js";
 
 try {
   const config = loadConfig();
@@ -14,6 +15,7 @@ try {
     throw error;
   }
   const stopWork = startBranchWorkers(store, config);
+  const stopMonitoring = startMonitoring(store, config);
   config.dev = process.argv.includes("--dev");
   const vite = config.dev
     ? await (
@@ -29,6 +31,7 @@ try {
   server.on("error", async (error) => {
     console.error("Could not listen:", error.code || error.message);
     await stopWork();
+    await stopMonitoring();
     await store.client.close();
     process.exitCode = 1;
   });
@@ -37,6 +40,7 @@ try {
       void app.stopLive();
       server.close(async () => {
         await stopWork();
+        await stopMonitoring();
         await store.client.close();
         await vite?.close();
       });

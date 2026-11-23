@@ -1,7 +1,11 @@
 import { registerCourierCallback } from "./courier.js";
 import { registerLive } from "./live.js";
 export { createApp } from "./branch-router.js";
-import { hasBranchAccess, enforcePermissions } from "./access.js";
+import {
+  hasBranchAccess,
+  enforcePermissions,
+  effectiveStaff,
+} from "./access.js";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import cookieParser from "cookie-parser";
@@ -365,7 +369,7 @@ export function createBranchApp(store, config, frontendMiddleware) {
         "BRANCH_FORBIDDEN",
         "Your staff account is not assigned to this branch.",
       );
-    req.staff = user;
+    req.staff = effectiveStaff(user, store.branchId || "main");
     if (
       staffPayload(user, config).mfaSetupRequired &&
       !["/me", "/password"].includes(req.path) &&
