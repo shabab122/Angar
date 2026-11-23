@@ -57,6 +57,9 @@ import {
 } from "./StaffPanels";
 
 const BranchManagement = lazy(() => import("./BranchManagement"));
+const OrganizationDashboard = lazy(() => import("./OrganizationDashboard"));
+const StockTransfersPanel = lazy(() => import("./StockTransfersPanel"));
+const MonitoringPanel = lazy(() => import("./MonitoringPanel"));
 const EventConfiguration = lazy(() => import("./EventConfiguration"));
 const CourierPanel = lazy(() => import("./CourierPanel"));
 const StocktakesPanel = lazy(() => import("./StocktakesPanel"));
@@ -66,6 +69,14 @@ const PrintingPanel = lazy(() => import("./PrintingPanel"));
 const OperationsAlerts = lazy(() => import("./OperationsAlerts"));
 
 const navigation = [
+  ["organization", LayoutDashboard, "All-branch dashboard", ["admin"]],
+  [
+    "stockTransfers",
+    Truck,
+    "Inter-branch stock transfers",
+    ["admin", "kitchen"],
+  ],
+  ["monitoring", BellRing, "Technical incidents", ["admin"]],
   ["branches", Truck, "Restaurant branches", ["admin"]],
   ["eventConfig", CalendarDays, "Event spaces & packages", ["admin"]],
   ["courier", Truck, "Couriers & delivery GPS", ["admin", "waiter"]],
@@ -129,6 +140,9 @@ const navigation = [
 ];
 
 const navPermission = {
+  organization: ["branches.dashboard"],
+  stockTransfers: ["transfers.view"],
+  monitoring: ["monitoring.view"],
   branches: ["branches.manage"],
   eventConfig: ["events.configure"],
   courier: ["courier.manage"],
@@ -436,11 +450,15 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
   });
   const activeNav = navigation.filter(
     (item) =>
-      item[3].includes(user.role) &&
-      (item[0] !== "branches" || user.platformAdmin) &&
+      (["organization", "monitoring", "branches"].includes(item[0])
+        ? user.platformAdmin
+        : item[3].includes(user.role)) &&
       (!navPermission[item[0]] ||
         navPermission[item[0]].some(
-          (key) => user.capabilities?.[key] !== false,
+          (key) =>
+            (["organization", "monitoring", "branches"].includes(item[0])
+              ? user.platformCapabilities
+              : user.capabilities)?.[key] !== false,
         )),
   );
   useEffect(() => {
@@ -697,6 +715,9 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
           {tab === "team" && <StaffAccounts user={user} />}
           {tab === "inventory" && <InventoryPanel {...common} />}
           <Suspense fallback={<Loading />}>
+            {tab === "organization" && <OrganizationDashboard />}
+            {tab === "stockTransfers" && <StockTransfersPanel user={user} />}
+            {tab === "monitoring" && <MonitoringPanel user={user} />}
             {tab === "branches" && <BranchManagement />}
             {tab === "eventConfig" && <EventConfiguration />}
             {tab === "courier" && <CourierPanel user={user} />}

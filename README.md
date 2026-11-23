@@ -1,8 +1,22 @@
-# Angar Kitchen · React v2.7
+# Angar Kitchen · React v2.8
 
 বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
 
 **প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
+
+## v2.8 — নতুন পাঁচটি ফিচার
+
+**Base: Angar_Kitchen_React_v2.7.zip।** Existing design/assets, stack ও working features রাখা হয়েছে। Upgrade ও ব্যবহারবিধি: [UPGRADE_v2.8_BN.md](UPGRADE_v2.8_BN.md)।
+
+| ফিচার                       | কোথায় / কী যোগ হয়েছে                                                                                                                                                                                  |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Consolidated dashboard      | All-branch dashboard: date-filtered sales, operating result, cash flows, current drawer/stock, missing-cost/unavailable-branch labels ও comparison CSV।                                               |
+| Inter-branch stock transfer | Request → approve → count/dispatch → partial/count receipt; source batch expiry/origin, exact weighted cost, quarantine ও recovery journal review।                                                    |
+| Native eCourier             | Direct merchant booking, assigned package/city lookup, tracking polling ও reviewed cancellation; uncertain writes preserve their original reference। Setup: [ECOURIER_NATIVE.md](ECOURIER_NATIVE.md)। |
+| Technical monitoring        | API/worker/job incidents, recovery, acknowledgement, email history ও independent downtime watchdog। Setup: [MONITORING.md](MONITORING.md)।                                                            |
+| Branch staff roles          | Staff accounts → Permissions scope: per-branch role, action restrictions ও approval/payment limits, default inheritance ও session revocation।                                                         |
+
+Native courier ও technical email credentials blank/off থাকে। Existing generic courier adapter default হিসেবেই আছে। Live eCourier চালাতে merchant credentials, prepared-food service ও delivery-time confirmation প্রয়োজন; SMTP alerts ও independent watchdog-ও operator-কে configure করতে হবে। নতুন runtime dependency নেই।
 
 ## v2.7 — নতুন ছয়টি ফিচার
 

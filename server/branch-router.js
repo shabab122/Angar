@@ -1,3 +1,9 @@
+import { registerOrganization } from "./organization.js";
+import {
+  monitoringMiddleware,
+  registerMonitoring,
+  readiness,
+} from "./monitoring.js";
 import express from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
@@ -30,22 +36,42 @@ export function createApp(store, config, frontendMiddleware) {
     }),
   );
   app.use(cookieParser(config.cookieSecret));
-  const global = express.Router();
-  global.use("/branches", (req, res, next) => {
-    res.set("Cache-Control", "no-store");
-    if (
-      !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
-      req.get("origin") !== config.origin
-    )
-      throw new HttpError(
-        403,
-        "ORIGIN",
-        "Open this application from its configured origin.",
-      );
-    next();
+  app.use(monitoringMiddleware(store, config));
+  app.get("/readyz", async (req, res) => {
+    try {
+      const state = await readiness(store);
+      res
+        .set("Cache-Control", "no-store")
+        .status(state.ready ? 200 : 503)
+        .json(state);
+    } catch {
+      res.status(503).json({ ready: false });
+    }
   });
-  global.use("/branches", express.json({ limit: "18kb" }));
+  const global = express.Router();
+  global.use(
+    ["/branches", "/organization", "/monitoring"],
+    (req, res, next) => {
+      res.set("Cache-Control", "no-store");
+      if (
+        !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
+        req.get("origin") !== config.origin
+      )
+        throw new HttpError(
+          403,
+          "ORIGIN",
+          "Open this application from its configured origin.",
+        );
+      next();
+    },
+  );
+  global.use(
+    ["/branches", "/organization", "/monitoring"],
+    express.json({ limit: "18kb" }),
+  );
   registerBranchManagement(global, store, config);
+  registerOrganization(global, store, config);
+  registerMonitoring(global, store, config);
   app.use("/api", global);
   app.use(async (req, res, next) => {
     const cookie = req.signedCookies[BRANCH_COOKIE] || "main",

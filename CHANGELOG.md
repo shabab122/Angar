@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.8.0
+
+Base: `Angar_Kitchen_React_v2.7.zip`. Existing design/assets, stack, guest workflows and dependencies are retained.
+
+- Added installation-authorized branch comparison with settled sales, operating result, cash flows, drawer/stock snapshots, missing-cost and unavailable-scope labels, in-transit value and CSV export.
+- Added transactional inter-branch transfer requests, source approvals, physical dispatch and idempotent partial receipt with exact weighted cost, FEFO batch provenance/expiry, expired-goods quarantine and reviewed restore journals.
+- Added an optional native eCourier merchant adapter, bounded package/city lookup, integer-taka collection validation, original-reference reconciliation/polling and confirmed cancellation. Generic adapter, manual dispatch and staff-driver GPS are retained. Provider delivery never credits a bill.
+- Added sanitized technical incidents, API counters, worker/job health, acknowledgement, deduplicated opt-in email and a separate persistent watchdog for downtime/recovery. Uncertain SMTP sends are reviewed before retry.
+- Added branch-specific staff role/action/approval-limit profiles, default inheritance, fresh transactional amount checks, effective-role MFA policy and global session revocation. Installation authority stays with the shared base identity.
+- Added v2.8 regression coverage and Bengali upgrade, native-courier and monitoring guides; restored transfers are frozen for reconciliation and restored technical email policy is disabled.
+
 ## 2.7.0
 
 Base: `Angar_Kitchen_React_v2.6.zip`. Existing design/assets, technology stack, table QR ordering, payment/refund rules, staff MFA, purchasing, inventory, reports, printing and backups are retained.

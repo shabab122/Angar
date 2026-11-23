@@ -95,17 +95,47 @@ export default function CourierPanel({ user }) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [link, setLink] = useState(""),
+    [native, setNative] = useState({
+      city: "",
+      thana: "",
+      area: "",
+      zip: "",
+      address: "",
+      packageCode: "",
+      foodServiceConfirmed: false,
+    }),
     { notify } = useApp();
+  const [password, setPassword] = useState(""),
+    [providerConfirmed, setProviderConfirmed] = useState(false);
+  const nativeMode = resource.data?.providerType === "ecourier",
+    catalog = useResource("/staff/courier/options", {
+      enabled: nativeMode && action?.type === "book",
+    });
   const rows =
       orders.data?.orders.filter((row) => row.kind === "delivery") || [],
     jobs = resource.data?.jobs || [];
   function open(type, order) {
-    setAction({ type, order });
+    setAction({
+      type,
+      order,
+      job: jobs.find((row) => row.orderId === order.id),
+    });
     setName(order.courier?.name || "");
     setPhone(order.courier?.phone || "");
     setReason("");
     setError("");
     setLink("");
+    setPassword("");
+    setProviderConfirmed(false);
+    setNative({
+      city: "",
+      thana: "",
+      area: order.address?.area || "",
+      zip: "",
+      address: order.address?.line || "",
+      packageCode: "",
+      foodServiceConfirmed: false,
+    });
   }
   async function run(event) {
     event.preventDefault();
@@ -117,10 +147,21 @@ export default function CourierPanel({ user }) {
         type === "driver"
           ? { expectedRevision: order.revision, name, phone, reason }
           : type === "book"
-            ? { expectedRevision: order.revision, requestKey: requestKey() }
-            : type === "reconcile"
-              ? {}
-              : { reason };
+            ? {
+                expectedRevision: order.revision,
+                requestKey: requestKey(),
+                ...(nativeMode ? { native } : {}),
+              }
+            : type === "review-cancellation"
+              ? {
+                  currentPassword: password,
+                  reason,
+                  confirmedWithProvider: providerConfirmed,
+                  expectedUpdatedAt: action.job?.updatedAt,
+                }
+              : type === "reconcile"
+                ? {}
+                : { reason };
       const result = await api("/staff/courier/" + order.id + "/" + type, {
         method: "POST",
         data,
@@ -163,8 +204,19 @@ export default function CourierPanel({ user }) {
       </div>
       {!resource.data?.configured && (
         <p className="commerce-note">
-          External courier booking needs your configured HTTPS adapter and
-          credentials. Staff driver links and manual dispatch are available.
+          External courier booking needs{" "}
+          {nativeMode
+            ? "your eCourier merchant credentials"
+            : "your configured HTTPS adapter and credentials"}
+          . Staff driver links and manual dispatch are available.
+        </p>
+      )}
+      {nativeMode && (
+        <p className="commerce-note">
+          eCourier native API · {resource.data.mode} mode · Provider status is
+          polled every minute. Confirm a prepared-food service and its delivery
+          timing with your merchant account before booking. Rider GPS is
+          available through your own staff links.
         </p>
       )}
       {(resource.error || orders.error) && (
@@ -221,8 +273,12 @@ export default function CourierPanel({ user }) {
               {job && (
                 <>
                   <p>
-                    Courier: {job.driverName || resource.data.providerName} ·{" "}
-                    <strong>{job.status}</strong>
+                    Courier:{" "}
+                    {job.driverName ||
+                      (job.providerType === "ecourier"
+                        ? "eCourier"
+                        : resource.data.providerName)}{" "}
+                    · <strong>{job.status}</strong>
                   </p>
                   {job.feeMinor !== null && (
                     <p>
@@ -233,11 +289,27 @@ export default function CourierPanel({ user }) {
                   {job.source === "external" && (
                     <p className="commerce-note">Reference: {job.reference}</p>
                   )}
+                  {job.providerType === "ecourier" &&
+                    ["unknown", "cancel_unknown"].includes(job.status) &&
+                    user.role === "admin" && (
+                      <Button
+                        secondary
+                        onClick={() => open("review-cancellation", order)}
+                      >
+                        Record provider cancellation confirmation
+                      </Button>
+                    )}
                   <Position location={job.location} at={job.locationAt} />
                   {job.deliveryPendingReview && (
                     <p className="courier-review">
                       Courier reports delivery. Confirm the handover after
                       payment verification.
+                    </p>
+                  )}
+                  {job.pollNeedsReview && (
+                    <p className="courier-review">
+                      Provider tracking needs review. Reconcile the original
+                      booking; its previous status was preserved.
                     </p>
                   )}
                   {job.confirmedAt && (
@@ -309,6 +381,8 @@ export default function CourierPanel({ user }) {
               reconcile: "Reconcile courier booking",
               cancel: "Cancel courier assignment",
               "confirm-delivery": "Confirm delivery handover",
+              "review-cancellation":
+                "Record provider cancellation confirmation",
             }[action.type]
           }
           onClose={() => {
@@ -354,11 +428,122 @@ export default function CourierPanel({ user }) {
                 result needs reconciliation.
               </p>
             )}
+            {action.type === "book" && nativeMode && (
+              <fieldset>
+                <legend>eCourier shipment details</legend>
+                {catalog.error && (
+                  <p className="commerce-note">
+                    Provider catalogue unavailable. Use the exact package code
+                    and location names verified with eCourier.
+                  </p>
+                )}
+                <datalist id="ecourier-cities">
+                  {catalog.data?.cities.map((city) => (
+                    <option key={city.value} value={city.value}>
+                      {city.name}
+                    </option>
+                  ))}
+                </datalist>
+                <datalist id="ecourier-packages">
+                  {catalog.data?.packages.map((item) => (
+                    <option key={item.package_code} value={item.package_code}>
+                      {item.package_name} · {item.delivery_time} ·{" "}
+                      {item.coverage}
+                    </option>
+                  ))}
+                </datalist>
+                {[
+                  ["city", "Recipient city"],
+                  ["thana", "Recipient thana"],
+                  ["area", "Recipient area"],
+                  ["zip", "Recipient postcode"],
+                  ["address", "Provider delivery address"],
+                  ["packageCode", "eCourier package code"],
+                ].map(([key, label]) => (
+                  <label key={key}>
+                    {label}
+                    <input
+                      aria-label={label}
+                      required
+                      maxLength={
+                        key === "packageCode" ? 60 : key === "zip" ? 4 : 40
+                      }
+                      pattern={key === "zip" ? "[0-9]{4}" : undefined}
+                      list={
+                        key === "city"
+                          ? "ecourier-cities"
+                          : key === "packageCode"
+                            ? "ecourier-packages"
+                            : undefined
+                      }
+                      value={native[key]}
+                      onChange={(event) =>
+                        setNative({ ...native, [key]: event.target.value })
+                      }
+                    />
+                  </label>
+                ))}
+                <p className="commerce-note">
+                  The provider address must fit its 40-character field. The
+                  original customer address stays on the order. Confirm the full
+                  delivery location with the recipient.
+                </p>
+                <label className="check-line">
+                  <input
+                    required
+                    type="checkbox"
+                    checked={native.foodServiceConfirmed}
+                    onChange={(event) =>
+                      setNative({
+                        ...native,
+                        foodServiceConfirmed: event.target.checked,
+                      })
+                    }
+                  />
+                  The provider confirmed this package accepts prepared food and
+                  meets the required delivery time.
+                </label>
+              </fieldset>
+            )}
             {action.type === "reconcile" && (
               <p>
                 Check the original courier reference. This does not create
                 another booking or record a payment.
               </p>
+            )}
+            {action.type === "review-cancellation" && (
+              <>
+                <p>
+                  Use this only after eCourier merchant support confirms the
+                  original reference has no active shipment and no rider
+                  assigned. Save their confirmation or support-ticket reference
+                  below. This releases the assignment for your own staff driver;
+                  it does not send another booking or refund a payment.
+                </p>
+                <label className="check-line">
+                  <input
+                    required
+                    type="checkbox"
+                    checked={providerConfirmed}
+                    onChange={(event) =>
+                      setProviderConfirmed(event.target.checked)
+                    }
+                  />
+                  I confirmed with the provider that no active shipment or rider
+                  remains.
+                </label>
+                <label>
+                  Administrator password
+                  <input
+                    aria-label="Courier review administrator password"
+                    required
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                </label>
+              </>
             )}
             {!["book", "reconcile"].includes(action.type) && (
               <label>

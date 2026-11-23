@@ -1,6 +1,7 @@
 import { getBranchRuntime } from "./branches.js";
 import { startOperationsWorker } from "./operations-worker.js";
 import { scanNotifications, runNotificationJobs } from "./notifications.js";
+import { workerHeartbeat } from "./monitoring.js";
 export function startBranchWorkers(store, config) {
   const runtime = getBranchRuntime(store, config),
     workers = new Map();
@@ -23,14 +24,20 @@ export function startBranchWorkers(store, config) {
               await runNotificationJobs(context.store, context.config);
             }),
           );
+          workerHeartbeat(store, "branch-discovery-" + branch._id);
         } catch {
+          workerHeartbeat(store, "branch-discovery-" + branch._id, true);
           console.error(
             "A branch worker needs operator attention. Check branch recovery status.",
           );
         }
       }
+      workerHeartbeat(store, "branch-discovery");
     })()
-      .catch(() => console.error("Branch worker discovery could not complete."))
+      .catch(() => {
+        workerHeartbeat(store, "branch-discovery", true);
+        console.error("Branch worker discovery could not complete.");
+      })
       .finally(() => {
         busy = false;
       });

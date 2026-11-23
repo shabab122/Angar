@@ -8,6 +8,14 @@ import { orderOwner } from "./customer.js";
 import { transaction, paidMinor, heldMinor } from "./money.js";
 import { restaurantSettings } from "./restaurant.js";
 import { branchPath } from "./branches.js";
+import { assertStaffAction } from "./access.js";
+import { passwordMatches } from "./security.js";
+import {
+  ecourierProvider,
+  ecourierReady,
+  prepareEcourier,
+  ecourierInput,
+} from "./courier-ecourier.js";
 const key = z.string().regex(/^[a-f0-9]{32}$/),
   reason = z.string().trim().min(3).max(160),
   revision = z.number().int().min(0),
@@ -42,11 +50,13 @@ const active = [
   "cancel_unknown",
 ];
 const providerReady = (config) =>
-  Boolean(
-    config.courier?.url &&
-    config.courier?.token &&
-    (config.courier?.webhookSecret || "").length >= 32,
-  );
+  config.courier?.provider === "ecourier"
+    ? ecourierReady(config)
+    : Boolean(
+        config.courier?.url &&
+        config.courier?.token &&
+        (config.courier?.webhookSecret || "").length >= 32,
+      );
 export function safeCourierUrl(value) {
   if (!value) return "";
   try {
@@ -71,6 +81,7 @@ export function safeCourierUrl(value) {
   }
 }
 function provider(config) {
+  if (config.courier?.provider === "ecourier") return ecourierProvider(config);
   const configured = config.courier || {};
   const request = async (method, reference, payload) => {
     if (!providerReady(config))
@@ -144,6 +155,8 @@ const jobView = (row) =>
         id: row._id,
         orderId: String(row.orderId),
         source: row.source,
+        providerType: row.providerType || "generic",
+        pollNeedsReview: Boolean(row.pollNeedsReview),
         reference: row.reference || "",
         providerId: row.providerId || "",
         status: row.status,
@@ -328,7 +341,7 @@ export function registerCourierCallback(app, store, config) {
           { reference: event.booking.reference, source: "external" },
           { session },
         );
-        if (!job)
+        if (!job || job.providerType === "ecourier")
           throw new HttpError(
             404,
             "COURIER_NOT_FOUND",
@@ -541,7 +554,15 @@ export function registerCourierStaff(api, store, config, requireId) {
   api.get("/courier", async (req, res) =>
     res.json({
       configured: providerReady(config),
-      providerName: config.courier?.name || "Configured courier",
+      providerType: config.courier?.provider || "generic",
+      mode:
+        config.courier?.provider === "ecourier"
+          ? config.courier.ecourier?.mode
+          : null,
+      providerName:
+        config.courier?.provider === "ecourier"
+          ? "eCourier"
+          : config.courier?.name || "Configured courier",
       jobs: (
         await store.courierJobs
           .find({})
@@ -551,6 +572,20 @@ export function registerCourierStaff(api, store, config, requireId) {
       ).map(jobView),
     }),
   );
+  api.get("/courier/options", async (req, res) => {
+    if (config.courier?.provider !== "ecourier")
+      return res.json({ packages: [], cities: [] });
+    try {
+      res.json(await ecourierProvider(config).options());
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(
+        503,
+        "COURIER_CATALOGUE",
+        "The eCourier package and city catalogue could not be confirmed.",
+      );
+    }
+  });
   api.post("/courier/:id/driver", async (req, res) => {
     const input = body(
         z.strictObject({
@@ -654,7 +689,11 @@ export function registerCourierStaff(api, store, config, requireId) {
         "Configure the courier adapter URL, token and webhook signing secret first.",
       );
     const input = body(
-        z.strictObject({ expectedRevision: revision, requestKey: key }),
+        z.strictObject({
+          expectedRevision: revision,
+          requestKey: key,
+          native: ecourierInput.optional(),
+        }),
         req.body,
       ),
       orderId = requireId(req.params.id),
@@ -718,6 +757,19 @@ export function registerCourierStaff(api, store, config, requireId) {
         reference,
         requestKey: input.requestKey,
         source: "external",
+        providerType: config.courier?.provider || "generic",
+        ...(config.courier?.provider === "ecourier"
+          ? {
+              native: prepareEcourier(
+                config,
+                order,
+                bill,
+                bill ? paidMinor(bill) : 0,
+                input.native,
+                restaurant,
+              ),
+            }
+          : {}),
         status: "submitting",
         createdAt: old?.createdAt || new Date(),
         updatedAt: new Date(),
@@ -767,7 +819,11 @@ export function registerCourierStaff(api, store, config, requireId) {
         config.origin + branchPath("/api/courier/webhook", config.branchId),
     };
     try {
-      const result = await provider(config).book(claim.job.reference, payload);
+      const result = await provider(config).book(
+        claim.job.reference,
+        payload,
+        claim.job,
+      );
       const job = await transaction(store, (session) =>
         applyProvider(store, claim.job._id, result, session),
       );
@@ -798,7 +854,8 @@ export function registerCourierStaff(api, store, config, requireId) {
         "External booking not found.",
       );
     try {
-      const result = await provider(config).status(job.reference),
+      assertConfiguredProvider(config, job);
+      const result = await provider(config).status(job.reference, job),
         updated = await transaction(store, (session) =>
           applyProvider(store, job._id, result, session),
         );
@@ -815,10 +872,33 @@ export function registerCourierStaff(api, store, config, requireId) {
   api.post("/courier/:id/cancel", async (req, res) => {
     const input = body(z.strictObject({ reason }), req.body),
       jobId = String(requireId(req.params.id));
+    const before = await store.courierJobs.findOne({ _id: jobId });
+    if (before?.source === "external") assertConfiguredProvider(config, before);
+    if (
+      before?.providerType === "ecourier" &&
+      ["submitting", "unknown", "cancel_unknown"].includes(before.status)
+    )
+      throw new HttpError(
+        409,
+        "COURIER_NOT_CONFIRMED",
+        "Reconcile the existing eCourier operation before requesting cancellation again.",
+      );
     const job = await store.courierJobs.findOneAndUpdate(
-      { _id: jobId, status: { $nin: ["confirmed", "cancelled"] } },
       {
-        $set: { trackingRevoked: true, updatedAt: new Date() },
+        _id: jobId,
+        status:
+          before?.providerType === "ecourier"
+            ? { $in: ["booked", "in_transit", "delivered"] }
+            : { $nin: ["confirmed", "cancelled"] },
+      },
+      {
+        $set: {
+          trackingRevoked: true,
+          updatedAt: new Date(),
+          ...(before?.providerType === "ecourier"
+            ? { status: "cancel_unknown" }
+            : {}),
+        },
         $unset: {
           driverTokenHash: "",
           location: "",
@@ -846,7 +926,11 @@ export function registerCourierStaff(api, store, config, requireId) {
         { $set: { status: "cancel_unknown" } },
       );
       try {
-        const result = await provider(config).cancel(job.reference);
+        const result = await provider(config).cancel(
+          job.reference,
+          job,
+          input.reason,
+        );
         if (result.status !== "cancelled")
           throw new Error("Cancellation unconfirmed");
         await transaction(store, (session) =>
@@ -896,6 +980,85 @@ export function registerCourierStaff(api, store, config, requireId) {
       );
     });
     res.json({ confirmed: true });
+  });
+  api.post("/courier/:id/review-cancellation", async (req, res) => {
+    if (req.staff.role !== "admin")
+      throw new HttpError(
+        403,
+        "FORBIDDEN",
+        "An administrator reviews uncertain native courier assignments.",
+      );
+    const input = body(
+        z.strictObject({
+          currentPassword: z.string().min(1).max(128),
+          reason,
+          confirmedWithProvider: z.literal(true),
+          expectedUpdatedAt: z.iso.datetime(),
+        }),
+        req.body,
+      ),
+      jobId = String(requireId(req.params.id)),
+      actor = await store.staff.findOne({ _id: req.staff._id, active: true });
+    if (
+      !actor ||
+      !(await passwordMatches(input.currentPassword, actor.passwordHash))
+    )
+      throw new HttpError(
+        403,
+        "PASSWORD_CHECK",
+        "Administrator password did not match.",
+      );
+    const job = await transaction(store, async (session) => {
+      await assertStaffAction(store, req.staff, "courier.manage", session);
+      const current = await store.courierJobs.findOne(
+        {
+          _id: jobId,
+          source: "external",
+          providerType: "ecourier",
+          status: { $in: ["unknown", "cancel_unknown"] },
+          updatedAt: new Date(input.expectedUpdatedAt),
+        },
+        { session },
+      );
+      if (!current)
+        throw new HttpError(
+          409,
+          "COURIER_UPDATED",
+          "Refresh an uncertain native booking before recording the provider confirmation.",
+        );
+      const updated = {
+        status: "cancelled",
+        trackingRevoked: true,
+        deliveryPendingReview: false,
+        updatedAt: new Date(),
+        providerReview: {
+          by: req.staff.username,
+          reason: input.reason,
+          at: new Date(),
+        },
+      };
+      await store.courierJobs.updateOne(
+        { _id: jobId },
+        {
+          $set: updated,
+          $unset: { driverTokenHash: "", location: "", locationAt: "" },
+        },
+        { session },
+      );
+      await store.audit.insertOne(
+        {
+          type: "courier.provider_cancellation_reviewed",
+          fulfillmentId: current.orderId,
+          reference: current.reference,
+          by: req.staff.username,
+          reason: input.reason,
+          at: new Date(),
+        },
+        { session },
+      );
+      return { ...current, ...updated };
+    });
+    res.json({ job: jobView(job) });
   });
 }
 export async function guardCourierTransition(store, row, action, session) {
@@ -957,4 +1120,54 @@ export async function expireCourierTracking(store) {
     { locationAt: { $lt: new Date(Date.now() - 24 * 3600000) } },
     { $unset: { location: "", locationAt: "" } },
   );
+}
+function assertConfiguredProvider(config, job) {
+  if (
+    (job.providerType || "generic") !== (config.courier?.provider || "generic")
+  )
+    throw new HttpError(
+      409,
+      "COURIER_PROVIDER_CHANGED",
+      "Restore the original courier provider to reconcile or cancel this booking.",
+    );
+}
+export async function pollNativeCourier(store, config) {
+  if (config.courier?.provider !== "ecourier" || !ecourierReady(config)) return;
+  for (let i = 0; i < 5; i++) {
+    const job = await store.courierJobs.findOneAndUpdate(
+      {
+        source: "external",
+        providerType: "ecourier",
+        status: { $in: ["booked", "in_transit", "unknown"] },
+        $or: [
+          { nextPollAt: { $lte: new Date() } },
+          { nextPollAt: { $exists: false } },
+        ],
+      },
+      { $set: { nextPollAt: new Date(Date.now() + 60000) } },
+      { sort: { updatedAt: 1 }, returnDocument: "after" },
+    );
+    if (!job) break;
+    try {
+      const result = await provider(config).status(job.reference, job);
+      await transaction(store, (session) =>
+        applyProvider(store, job._id, result, session),
+      );
+      await store.courierJobs.updateOne(
+        { _id: job._id },
+        { $unset: { pollNeedsReview: "" } },
+      );
+    } catch (error) {
+      await store.courierJobs.updateOne(
+        { _id: job._id },
+        {
+          $set: {
+            pollNeedsReview: true,
+            pollCode:
+              error instanceof HttpError ? error.code : "COURIER_UNAVAILABLE",
+          },
+        },
+      );
+    }
+  }
 }

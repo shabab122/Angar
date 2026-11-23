@@ -68,6 +68,10 @@ export function loadConfig(env = process.env) {
     throw new Error("Invalid TRUST_PROXY.");
 
   const gatewayMode = env.SSLCOMMERZ_MODE || "sandbox";
+  if (!["generic", "ecourier"].includes(env.COURIER_PROVIDER || "generic"))
+    throw new Error("COURIER_PROVIDER must be generic or ecourier.");
+  if (!["sandbox", "live"].includes(env.ECOURIER_MODE || "sandbox"))
+    throw new Error("ECOURIER_MODE must be sandbox or live.");
   if (!["sandbox", "live"].includes(gatewayMode))
     throw new Error("SSLCOMMERZ_MODE must be sandbox or live.");
   const publicOrigin =
@@ -82,7 +86,27 @@ export function loadConfig(env = process.env) {
       "SSLCOMMERZ_PUBLIC_ORIGIN must be a public HTTPS origin without a path.",
     );
   return {
+    monitoring: {
+      emailEnabled: env.MONITOR_EMAIL_ENABLED === "true",
+      emails: (env.MONITOR_EMAIL_TO || "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .map((v) => {
+          if (!/^[^\s@,;<>\r\n]+@[^\s@,;<>\r\n]+\.[^\s@,;<>\r\n]+$/.test(v))
+            throw new Error("Invalid MONITOR_EMAIL_TO.");
+          return v;
+        }),
+      slowMs: 3000,
+    },
     courier: {
+      provider: env.COURIER_PROVIDER || "generic",
+      ecourier: {
+        mode: env.ECOURIER_MODE || "sandbox",
+        apiKey: env.ECOURIER_API_KEY || "",
+        apiSecret: env.ECOURIER_API_SECRET || "",
+        userId: env.ECOURIER_USER_ID || "",
+      },
       name: env.COURIER_NAME || "Configured courier",
       url: env.COURIER_API_URL || "",
       token: env.COURIER_API_TOKEN || "",

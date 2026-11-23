@@ -1,6 +1,6 @@
 {
   "name": "angar-kitchen",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "private": true,
   "description": "React restaurant website with QR ordering, table billing and a staff workspace.",
   "type": "module",
@@ -8,6 +8,7 @@
     "node": ">=24.0.0"
   },
   "scripts": {
+    "monitor:watch": "node --env-file-if-exists=.env scripts/monitor-watch.js",
     "setup": "node scripts/setup.js",
     "seed": "node --env-file-if-exists=.env scripts/seed.js",
     "tables": "node --env-file-if-exists=.env scripts/tables.js",

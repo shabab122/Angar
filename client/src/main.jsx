@@ -30,6 +30,7 @@ import "./styles/v24.css";
 import "./styles/v25.css";
 import "./styles/v26.css";
 import "./styles/v27.css";
+import "./styles/v28.css";
 const Driver = lazy(() => import("./pages/Driver"));
 const PrintJobPreview = lazy(() =>
   import("./pages/PrintingPanel").then((module) => ({

@@ -1,3 +1,4 @@
+import { effectiveStaff } from "./access.js";
 import path from "node:path";
 import {
   readFile,
@@ -497,7 +498,6 @@ export function registerCloudBackups(api, store, config, requireAdmin) {
       user = await store.staff.findOne({
         _id: req.staff._id,
         active: true,
-        role: "admin",
       });
     if (
       !user ||

@@ -158,6 +158,7 @@ export function getBranchRuntime(root, config) {
             },
           };
           const store = await connectDatabase(childConfig, root.client);
+          store.rootStore = root;
           return { store, config: childConfig };
         })().catch((error) => {
           cache.delete(slug);
