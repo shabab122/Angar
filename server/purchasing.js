@@ -143,6 +143,76 @@ function dueDate(value) {
     throw new HttpError(400, "PURCHASE_DATE", "Use a valid payment due date.");
 }
 
+export async function insertPurchaseDraft(
+  store,
+  input,
+  by,
+  session,
+  metadata = {},
+) {
+  const fingerprint = hash(JSON.stringify(input));
+  const prior = await store.purchases.findOne(
+    { requestKey: input.requestKey },
+    { session },
+  );
+  if (prior) {
+    if (prior.fingerprint !== fingerprint)
+      throw new HttpError(
+        409,
+        "REQUEST_REUSED",
+        "This key belongs to another purchase order.",
+      );
+    return prior;
+  }
+  const supplier = await store.suppliers.findOneAndUpdate(
+    { _id: new ObjectId(input.supplierId), active: true },
+    { $inc: { revision: 1 } },
+    { session, returnDocument: "after" },
+  );
+  if (!supplier)
+    throw new HttpError(409, "SUPPLIER_REQUIRED", "Choose an active supplier.");
+  const lines = await purchaseLines(store, input.lines, session),
+    orderedMinor = lines.reduce((sum, line) => sum + line.amountMinor, 0);
+  if (orderedMinor > 10_000_000_000)
+    throw new HttpError(
+      400,
+      "PURCHASE_AMOUNT",
+      "Purchase total exceeds the supported limit.",
+    );
+  const row = {
+    _id: new ObjectId(),
+    code: "PO-" + randomBytes(6).toString("hex").toUpperCase(),
+    supplierId: supplier._id,
+    supplierName: supplier.name,
+    lines,
+    orderedMinor,
+    receivedMinor: 0,
+    paidMinor: 0,
+    status: "draft",
+    dueOn: input.dueOn,
+    notes: input.notes,
+    revision: 0,
+    createdAt: new Date(),
+    createdBy: by,
+    requestKey: input.requestKey,
+    fingerprint,
+    ...metadata,
+    history: [{ status: "draft", by: by, at: new Date() }],
+  };
+  await store.purchases.insertOne(row, { session });
+  await store.audit.insertOne(
+    {
+      type: "purchase.created",
+      purchaseId: row._id,
+      supplierId: supplier._id,
+      by: by,
+      at: new Date(),
+    },
+    { session },
+  );
+  return row;
+}
+
 export function registerPurchasing(
   api,
   store,
@@ -327,71 +397,9 @@ export function registerPurchasing(
     const input = body(purchaseInput.extend({ requestKey: key }), req.body);
     dueDate(input.dueOn);
     const fingerprint = hash(JSON.stringify(input));
-    const result = await transaction(store, async (session) => {
-      const prior = await store.purchases.findOne(
-        { requestKey: input.requestKey },
-        { session },
-      );
-      if (prior) {
-        if (prior.fingerprint !== fingerprint)
-          throw new HttpError(
-            409,
-            "REQUEST_REUSED",
-            "This key belongs to another purchase order.",
-          );
-        return prior;
-      }
-      const supplier = await store.suppliers.findOneAndUpdate(
-        { _id: requireId(input.supplierId), active: true },
-        { $inc: { revision: 1 } },
-        { session, returnDocument: "after" },
-      );
-      if (!supplier)
-        throw new HttpError(
-          409,
-          "SUPPLIER_REQUIRED",
-          "Choose an active supplier.",
-        );
-      const lines = await purchaseLines(store, input.lines, session),
-        orderedMinor = lines.reduce((sum, line) => sum + line.amountMinor, 0);
-      if (orderedMinor > 10_000_000_000)
-        throw new HttpError(
-          400,
-          "PURCHASE_AMOUNT",
-          "Purchase total exceeds the supported limit.",
-        );
-      const row = {
-        _id: new ObjectId(),
-        code: "PO-" + randomBytes(6).toString("hex").toUpperCase(),
-        supplierId: supplier._id,
-        supplierName: supplier.name,
-        lines,
-        orderedMinor,
-        receivedMinor: 0,
-        paidMinor: 0,
-        status: "draft",
-        dueOn: input.dueOn,
-        notes: input.notes,
-        revision: 0,
-        createdAt: new Date(),
-        createdBy: req.staff.username,
-        requestKey: input.requestKey,
-        fingerprint,
-        history: [{ status: "draft", by: req.staff.username, at: new Date() }],
-      };
-      await store.purchases.insertOne(row, { session });
-      await store.audit.insertOne(
-        {
-          type: "purchase.created",
-          purchaseId: row._id,
-          supplierId: supplier._id,
-          by: req.staff.username,
-          at: new Date(),
-        },
-        { session },
-      );
-      return row;
-    });
+    const result = await transaction(store, (session) =>
+      insertPurchaseDraft(store, input, req.staff.username, session),
+    );
     res.status(201).json({ purchase: purchaseView(result) });
   });
   api.get("/purchases/:id", billingRoles, async (req, res) => {

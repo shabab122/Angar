@@ -4,6 +4,7 @@ import { scanStaffAlerts, runStaffAlertDeliveries } from "./staff-alerts.js";
 import { runBackupJobs } from "./backups.js";
 import { runCloudBackupJobs } from "./backup-cloud.js";
 import { workerHeartbeat, registerWorker } from "./monitoring.js";
+import { runPurchaseSuggestions } from "./purchase-suggestions.js";
 export function startOperationsWorker(store, config, extra = async () => {}) {
   let stopped = false;
   const tasks = [
@@ -19,6 +20,7 @@ export function startOperationsWorker(store, config, extra = async () => {}) {
       await runStaffAlertDeliveries(store, config);
     },
     extra,
+    () => runPurchaseSuggestions(store, config),
   ].map((work, index) => ({
     name: [
       "courier",
@@ -27,6 +29,7 @@ export function startOperationsWorker(store, config, extra = async () => {}) {
       "printing",
       "staff-alerts",
       "notifications",
+      "purchase-suggestions",
     ][index],
     work,
     running: false,

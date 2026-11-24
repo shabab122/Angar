@@ -106,7 +106,12 @@ export async function placeOrder(
   const requestFilter = { guestHash, requestKey };
 
   function replay(order) {
-    if (order.customerId && !order.customerId.equals(actor.customerId))
+    if (
+      order.customerId &&
+      ![actor.customerId, ...(actor.customerAliases || [])].some(
+        (id) => id && order.customerId.equals(id),
+      )
+    )
       throw new HttpError(
         404,
         "NOT_FOUND",

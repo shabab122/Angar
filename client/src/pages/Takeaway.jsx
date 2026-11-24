@@ -1,3 +1,4 @@
+import { useCustomerUpdates } from "../lib/useCustomerUpdates";
 import { lazy, Suspense } from "react";
 const DeliveryTracking = lazy(() =>
   import("./CourierPanel").then((module) => ({
@@ -83,6 +84,7 @@ function FulfillmentItems({ order }) {
 }
 
 export function Takeaway() {
+  const live = useCustomerUpdates();
   const app = useApp(),
     { t, money, name, language, menu, pricedLines, customer, notify } = app;
   const options = useResource("/fulfillment/options", { interval: 15000 }),
@@ -256,6 +258,13 @@ export function Takeaway() {
   }
   return (
     <section className="container fulfillment-page">
+      <p className="customer-live-status" role="status">
+        {live === "connected"
+          ? "Connected · instant updates"
+          : live === "offline"
+            ? "Offline · reconnecting when available"
+            : "Automatic updates · reconnecting"}
+      </p>
       <div className="page-heading">
         <Eyebrow>{t("ANGAR, WHEREVER YOU ARE", "আপনার পছন্দের আঙার")}</Eyebrow>
         <h1>

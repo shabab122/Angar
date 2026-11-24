@@ -96,6 +96,26 @@ export const permissionCatalog = [
   ["floor.manage", "Handle floor service requests", ["admin", "waiter"]],
 ];
 permissionCatalog.push(
+  [
+    "purchase.suggest",
+    "Configure stock replenishment suggestions and draft automation",
+    ["admin"],
+  ],
+  [
+    "attendance.self",
+    "View own duties and clock attendance",
+    ["admin", "kitchen", "waiter", "cashier"],
+  ],
+  [
+    "attendance.manage",
+    "Manage branch duty roster and review actual attendance",
+    ["admin"],
+  ],
+  [
+    "payroll.manage",
+    "Configure salary rates, calculate and approve branch payroll",
+    ["admin"],
+  ],
   ["branches.manage", "Create / edit restaurant branches", ["admin"]],
   ["reviews.manage", "Moderate guest reviews", ["admin"]],
   ["branches.dashboard", "View consolidated branch performance", ["admin"]],
@@ -360,6 +380,12 @@ export function routePermission(req) {
   const p = req.path,
     m = req.method,
     b = req.body || {};
+  if (/^\/purchase-suggestions(?:\/|$)/.test(p)) return "purchase.suggest";
+  if (/^\/payroll(?:\/|$)/.test(p)) return "payroll.manage";
+  if (/^\/attendance(?:\/|$)/.test(p))
+    return p === "/attendance/me" || /\/clock-(in|out)$/.test(p)
+      ? "attendance.self"
+      : "attendance.manage";
   if (
     ["/me", "/password", "/access-catalog"].includes(p) ||
     /^\/mfa(?:\/|$)/.test(p)
@@ -460,6 +486,7 @@ export function routePermission(req) {
       ? "alerts.configure"
       : "alerts.view";
   if (/^\/printing(?:\/|$)/.test(p)) {
+    if (/\/routing$/.test(p)) return "printing.configure";
     if (/\/settings$/.test(p)) return "printing.configure";
     if (/\/receipts\//.test(p)) return "printing.receipt";
     return null;

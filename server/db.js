@@ -1,4 +1,5 @@
 import { MongoClient } from "mongodb";
+import { sharedCustomerCollection } from "./shared-customers.js";
 
 export async function connectDatabase(config, sharedClient = null) {
   const client =
@@ -15,6 +16,11 @@ export async function connectDatabase(config, sharedClient = null) {
     const collections = {
       transfers: identityDb.collection("stockTransfers"),
       transferEntries: db.collection("stockTransferEntries"),
+      purchaseRules: db.collection("purchaseSuggestionRules"),
+      rosters: identityDb.collection("staffRosters"),
+      attendance: identityDb.collection("staffAttendance"),
+      payProfiles: db.collection("payProfiles"),
+      payrollRuns: db.collection("payrollRuns"),
       monitoringIncidents: identityDb.collection("monitoringIncidents"),
       monitoringDeliveries: identityDb.collection("monitoringDeliveries"),
       monitoringInstances: identityDb.collection("monitoringInstances"),
@@ -63,13 +69,16 @@ export async function connectDatabase(config, sharedClient = null) {
       events: db.collection("events"),
       eventLocks: db.collection("eventLocks"),
       serviceRequests: db.collection("serviceRequests"),
-      customers: db.collection("customers"),
-      accountTokens: db.collection("accountTokens"),
+      customers: identityDb.collection("customers"),
+      sharedCustomers: identityDb.collection("customers"),
+      legacyCustomers: db.collection("customers"),
+      legacyCustomerSessions: db.collection("customerSessions"),
+      accountTokens: identityDb.collection("accountTokens"),
       refunds: db.collection("refunds"),
       ingredients: db.collection("ingredients"),
       recipes: db.collection("recipes"),
       stockMovements: db.collection("stockMovements"),
-      customerSessions: db.collection("customerSessions"),
+      customerSessions: identityDb.collection("customerSessions"),
       coupons: db.collection("coupons"),
       couponRedemptions: db.collection("couponRedemptions"),
       loyaltyLedger: db.collection("loyaltyLedger"),
@@ -79,6 +88,22 @@ export async function connectDatabase(config, sharedClient = null) {
     };
     const { dishes, tables, orders, reviews, staff, sessions } = collections;
     await Promise.all([
+      collections.rosters.createIndex(
+        { branchId: 1, requestKey: 1 },
+        { unique: true },
+      ),
+      collections.rosters.createIndex({ staffId: 1, startAt: 1, endAt: 1 }),
+      collections.attendance.createIndex(
+        { staffId: 1 },
+        { unique: true, partialFilterExpression: { open: true } },
+      ),
+      collections.attendance.createIndex({ rosterId: 1 }, { unique: true }),
+      collections.attendance.createIndex({
+        branchId: 1,
+        workDay: 1,
+        staffId: 1,
+      }),
+      collections.payrollRuns.createIndex({ period: 1 }, { unique: true }),
       collections.stocktakes.createIndex({ requestKey: 1 }, { unique: true }),
       collections.stocktakes.createIndex({ createdAt: -1 }),
       collections.inventoryConsumptions.createIndex({ at: -1 }),
@@ -186,6 +211,10 @@ export async function connectDatabase(config, sharedClient = null) {
     ]);
     await Promise.all([
       collections.customers.createIndex({ email: 1 }, { unique: true }),
+      collections.customers.createIndex(
+        { aliases: 1 },
+        { unique: true, sparse: true },
+      ),
       collections.backupJobs.createIndex({ status: 1, createdAt: 1 }),
       collections.notificationPreferences.createIndex({ lastScannedAt: 1 }),
       collections.notificationJobs.createIndex({ status: 1, dueAt: 1 }),
@@ -373,6 +402,10 @@ export async function connectDatabase(config, sharedClient = null) {
         { $setOnInsert: { revision: 0 } },
         { upsert: true },
       );
+    collections.customers = sharedCustomerCollection(
+      collections.sharedCustomers,
+      collections.legacyCustomers,
+    );
     return {
       client,
       db,

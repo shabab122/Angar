@@ -265,7 +265,12 @@ export async function flushMonitoring(store, config) {
           kind: "job",
           branch: branch._id,
           title: "Latest " + name + " job needs review",
-          active: ["failed", "uncertain", "unknown"].includes(latest.status),
+          active: [
+            "failed",
+            "uncertain",
+            "unknown",
+            "destination_changed",
+          ].includes(latest.status),
         });
       }
       await recordIncident(root, config, {

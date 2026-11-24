@@ -1,3 +1,4 @@
+import { ownsCustomer } from "./shared-customers.js";
 import { guardCourierTransition } from "./courier.js";
 import { queueKitchenTicket } from "./printing.js";
 import { recordConsumption } from "./inventory-cost.js";
@@ -457,7 +458,10 @@ export function registerGuestFulfillment(api, store, config, requireId) {
       guestHash = getGuest(req, res, config),
       fingerprint = hash(JSON.stringify(input));
     const replay = (previous) => {
-      if (previous.customerId && !previous.customerId.equals(req.customer?._id))
+      if (
+        previous.customerId &&
+        !ownsCustomer(req.customer, previous.customerId)
+      )
         throw new HttpError(
           404,
           "NOT_FOUND",

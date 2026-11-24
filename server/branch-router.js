@@ -123,11 +123,7 @@ export function createApp(store, config, frontendMiddleware) {
           slug,
           cookieOptions(config, { signed: true, maxAge: 365 * 86400000 }),
         );
-        for (const name of [
-          "angar_table",
-          "angar_customer",
-          "angar_staff_pending",
-        ])
+        for (const name of ["angar_table", "angar_staff_pending"])
           res.clearCookie(name, cookieOptions(config));
       } else throw error;
     }
@@ -141,11 +137,7 @@ export function createApp(store, config, frontendMiddleware) {
         cookieOptions(config, { signed: true, maxAge: 365 * 86400000 }),
       );
       if (slug !== cookie)
-        for (const name of [
-          "angar_table",
-          "angar_customer",
-          "angar_staff_pending",
-        ])
+        for (const name of ["angar_table", "angar_staff_pending"])
           res.clearCookie(name, cookieOptions(config));
     }
     if (req.path.startsWith("/api/") && queryBranch) {

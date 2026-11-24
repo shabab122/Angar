@@ -1,3 +1,4 @@
+import { useCustomerUpdates } from "../lib/useCustomerUpdates";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -29,6 +30,7 @@ import { GuestTableBill } from "../components/Financial";
 import { GuestOrderChanges } from "../components/Operations";
 
 export function Orders() {
+  const live = useCustomerUpdates();
   const app = useApp();
   const { t, name, money, language, contextReady, notify } = app;
   const [params] = useSearchParams();
@@ -56,9 +58,7 @@ export function Orders() {
         method: "POST",
         data: { version: event.quote.version },
       });
-      notify(
-        t("Your acceptance has been recorded.", "আপনার সম্মতি জমা হয়েছে।"),
-      );
+      notify(t("Your acceptance has been recorded.", "আপনার সম্মতি জমা হয়েছে।"));
       await resource.reload();
     } catch (error) {
       notify(error.message);
@@ -68,6 +68,13 @@ export function Orders() {
   }
   return (
     <section className="container orders-page">
+      <p className="customer-live-status" role="status">
+        {live === "connected"
+          ? "Connected · instant updates"
+          : live === "offline"
+            ? "Offline · reconnecting when available"
+            : "Automatic updates · reconnecting"}
+      </p>
       <div className="page-heading">
         <Eyebrow>{t("YOUR ANGAR EXPERIENCE", "আঙারে আপনার অভিজ্ঞতা")}</Eyebrow>
         <h1>
@@ -144,10 +151,7 @@ export function Orders() {
                 {order.status === "cancelled" && (
                   <ErrorMessage>
                     {order.history.at(-1)?.reason ||
-                      t(
-                        "Please speak to your server.",
-                        "স্টাফের সঙ্গে কথা বলুন।",
-                      )}
+                      t("Please speak to your server.", "স্টাফের সঙ্গে কথা বলুন।")}
                   </ErrorMessage>
                 )}
                 <ul className="ordered-items">
@@ -221,10 +225,7 @@ export function Orders() {
                             "Included in a paid table bill",
                             "পরিশোধিত টেবিল বিলে অন্তর্ভুক্ত",
                           )
-                        : t(
-                            "Pay at the restaurant",
-                            "রেস্টুরেন্টে পরিশোধ করুন",
-                          )}
+                        : t("Pay at the restaurant", "রেস্টুরেন্টে পরিশোধ করুন")}
                     </small>
                   </span>
                   <strong>{money(order.total)}</strong>
@@ -534,10 +535,7 @@ function ReviewForm({ target, onClose, onSaved }) {
             }
           >
             <option value="public">
-              {t(
-                "Share publicly after review",
-                "যাচাইয়ের পর সবার সঙ্গে প্রকাশ",
-              )}
+              {t("Share publicly after review", "যাচাইয়ের পর সবার সঙ্গে প্রকাশ")}
             </option>
             <option value="private">
               {t("Only the restaurant team", "শুধু রেস্টুরেন্টের টিম")}

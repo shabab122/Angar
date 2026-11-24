@@ -1,8 +1,22 @@
-# Angar Kitchen · React v2.8
+# Angar Kitchen · React v2.9
 
 বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
 
 **প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
+
+## v2.9 — পরের পাঁচটি ফিচার
+
+**Base: Angar_Kitchen_React_v2.8.zip।** Existing design/assets, stack ও workflows রাখা হয়েছে। Upgrade ও পূর্ণ ব্যবহারবিধি: [UPGRADE_v2.9_BN.md](UPGRADE_v2.9_BN.md)। নতুন runtime dependency নেই।
+
+| ফিচার                                       | কোথায় / কী যোগ হয়েছে                                                                                                                                          |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared customer accounts & loyalty          | সব branch-এ একই login ও points balance; combined table/pickup/delivery history; old branch accounts two-password proof দিয়ে link।                             |
+| Customer instant updates                    | Private SSE on Orders, Reservations/waiting list ও Takeaway; reconnect/resync, session checks ও polling fallback।                                             |
+| Kitchen station routing / multiple printers | Category/dish routing, station-only tickets, immutable running-order routing snapshots, revision/stop tickets ও operator-configured printer profiles।         |
+| Staff attendance & payroll                  | Duty roster, server clock-in/out, manager time corrections/OT review, fixed/hourly salary calculation ও existing expense workflow-তে reviewed salary expense। |
+| Automatic purchase suggestions              | Usable-stock shortage, supplier/pack/quote rules, grouped purchase drafts ও opt-in periodic drafting; existing manager order approval remains required।       |
+
+Existing installations-এ `.env`, data ও keys রেখে upgrade করুন; demo seed/reset লাগবে না। Extra printer profiles optional, purchase automation off থাকে। Payroll approve করলে cash payment হয় না; actual payment আগের expense tools দিয়ে record করতে হবে। পুরোনো একই-email accounts শুধু email মিলে merge হবে না—দুই account password লাগে।
 
 ## v2.8 — নতুন পাঁচটি ফিচার
 

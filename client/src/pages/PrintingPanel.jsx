@@ -137,6 +137,12 @@ export default function PrintingPanel({ user }) {
                 </div>
                 <p>
                   {job.title} · {job.event}
+                  {job.stationName && (
+                    <>
+                      {" "}
+                      · {job.stationName} → {job.printerId}
+                    </>
+                  )}
                 </p>
                 <p className="commerce-note">
                   {dhakaTime(job.createdAt)} · {job.by}
@@ -157,9 +163,12 @@ export default function PrintingPanel({ user }) {
                   >
                     Open thermal print preview
                   </a>
-                  {["ready", "failed", "browser_required"].includes(
-                    job.status,
-                  ) &&
+                  {[
+                    "ready",
+                    "failed",
+                    "browser_required",
+                    "destination_changed",
+                  ].includes(job.status) &&
                     resource.data.configured && (
                       <Button
                         secondary
