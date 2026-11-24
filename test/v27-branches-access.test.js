@@ -74,7 +74,10 @@ test("branches isolate menu, stock, table visits, cash and guest identities with
     );
     assert.equal(await child.store.staff.countDocuments({}), 4);
     await post(guest, "/api/branches/select", { branchId: "uttara" });
-    assert.equal(ok(await guest("/api/account")).customer, null);
+    assert.ok(
+      ok(await guest("/api/account")).customer,
+      "Shared customer sign-in persists across branch selection in v2.9.",
+    );
     assert.equal(ok(await guest("/api/context")).table, null);
     assert.deepEqual(ok(await guest("/api/orders")).orders, []);
     ok(

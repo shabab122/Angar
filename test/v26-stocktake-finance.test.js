@@ -314,23 +314,25 @@ test("approved operating expenses require actual payment, serialize limits and a
     }),
     201,
   );
+  const competingPayment = { ...payment, requestKey: key() };
   const responses = await Promise.all([
     post(
       f.staff.admin,
       "/api/staff/expenses/" + expense.id + "/payments",
       payment,
     ),
-    post(f.staff.cashier, "/api/staff/expenses/" + expense.id + "/payments", {
-      ...payment,
-      requestKey: key(),
-    }),
+    post(
+      f.staff.cashier,
+      "/api/staff/expenses/" + expense.id + "/payments",
+      competingPayment,
+    ),
   ]);
   assert.deepEqual(responses.map((r) => r.status).sort(), [201, 409]);
   ok(
     await post(
       f.staff.cashier,
       "/api/staff/expenses/" + expense.id + "/payments",
-      payment,
+      responses[0].status === 201 ? payment : competingPayment,
     ),
     201,
   );

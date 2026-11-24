@@ -3,6 +3,12 @@ import { z } from "zod";
 import { rateLimit } from "express-rate-limit";
 import { body, HttpError } from "./http.js";
 import {
+  customerIds,
+  registerSharedCustomerLinks,
+  claimLegacyCustomer,
+  combinedCustomerRows,
+} from "./shared-customers.js";
+import {
   issueAccountMail,
   mailStatus,
   registerAccountMail,
@@ -33,6 +39,8 @@ export const customerView = (customer) =>
         email: customer.email,
         phone: customer.phone || "",
         points: customer.points || 0,
+        shared: true,
+        identityRevision: customer.identityRevision || 0,
         emailVerified: Boolean(customer.emailVerifiedAt),
       }
     : null;
@@ -49,7 +57,7 @@ export const orderOwner = (req, guestHash) =>
   req.customer
     ? {
         $or: [
-          { customerId: req.customer._id },
+          { customerId: { $in: customerIds(req.customer) } },
           { guestHash, customerId: null },
         ],
       }
@@ -125,6 +133,7 @@ export function registerCustomers(api, store, config, requireId) {
       },
     },
   });
+  registerSharedCustomerLinks(api, store, config, requireCustomer, authLimit);
   api.get("/account", (req, res) =>
     res.json({
       customer: customerView(req.customer),
@@ -142,6 +151,12 @@ export function registerCustomers(api, store, config, requireId) {
       }),
       req.body,
     );
+    if (await store.customers.findOne({ email: input.email }))
+      throw new HttpError(
+        409,
+        "ACCOUNT_EXISTS",
+        "An account is already registered with that email. Sign in instead.",
+      );
     const customer = {
       _id: new ObjectId(),
       name: input.name,
@@ -177,7 +192,7 @@ export function registerCustomers(api, store, config, requireId) {
       z.strictObject({ email, password: z.string().min(1).max(128) }),
       req.body,
     );
-    const customer = await store.customers.findOne({
+    let customer = await store.customers.findOne({
       email: input.email,
       active: true,
     });
@@ -187,6 +202,8 @@ export function registerCustomers(api, store, config, requireId) {
         "LOGIN_FAILED",
         "The email or password is incorrect.",
       );
+    if (customer._shared === false)
+      customer = await claimLegacyCustomer(store, config, customer);
     await signIn(store, req, res, config, customer);
     res.json({ customer: customerView(customer) });
   });
@@ -248,24 +265,27 @@ export function registerCustomers(api, store, config, requireId) {
     },
   );
   api.get("/account/loyalty", requireCustomer, async (req, res) => {
-    const customer = await store.customers.findOne({ _id: req.customer._id });
-    const rows = await store.loyaltyLedger
-      .find({ customerId: customer._id })
-      .sort({ at: -1 })
-      .limit(50)
-      .toArray();
+    const customer = await store.customers.findOne({ _id: req.customer._id }),
+      result = await combinedCustomerRows(store, config, customer, "loyalty");
+    const rows = result.rows
+      .sort((a, b) => new Date(b.at) - new Date(a.at))
+      .slice(0, 50);
     res.json({
       points: customer.points || 0,
-      ledger: rows.map(({ key, delta, reason, at }) => ({
-        id: key,
-        delta,
-        reason,
-        at,
+      complete: result.unavailable.length === 0,
+      unavailableBranches: result.unavailable,
+      ledger: rows.map((row) => ({
+        id: row.branchId + ":" + row.key,
+        delta: row.delta,
+        reason: row.reason,
+        at: row.at,
+        branchId: row.branchId,
+        branchName: row.branchName,
       })),
     });
   });
   api.get("/account/history", requireCustomer, async (req, res) => {
-    let cursor;
+    let cursor = null;
     if (req.query.before) {
       try {
         cursor = JSON.parse(
@@ -280,52 +300,81 @@ export function registerCustomers(api, store, config, requireId) {
         throw new HttpError(400, "INVALID_CURSOR", "Invalid history page.");
       }
     }
-    const filter = {
-      customerId: req.customer._id,
-      ...(cursor
-        ? {
-            $or: [
-              { createdAt: { $lt: new Date(cursor.at) } },
-              {
-                createdAt: new Date(cursor.at),
-                _id: { $lt: new ObjectId(cursor.id) },
-              },
-            ],
-          }
-        : {}),
-    };
-    const rows = await store.orders
-      .find(filter)
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(26)
-      .toArray();
-    const page = rows.slice(0, 25),
+    const result = await combinedCustomerRows(
+        store,
+        config,
+        req.customer,
+        "history",
+        cursor?.at,
+      ),
+      key = (row) =>
+        new Date(row.createdAt).toISOString() +
+        "|" +
+        String(row._id) +
+        "|" +
+        row.branchId +
+        "|" +
+        row.sourceKind,
+      cutoff = cursor
+        ? cursor.at +
+          "|" +
+          cursor.id +
+          "|" +
+          (cursor.branch || "~") +
+          "|" +
+          (cursor.kind || "~")
+        : null;
+    const rows = result.rows
+        .filter((row) => !cutoff || key(row) < cutoff)
+        .sort((a, b) => (key(a) === key(b) ? 0 : key(a) < key(b) ? 1 : -1)),
+      page = rows.slice(0, 25),
       last = page.at(-1);
     res.json({
-      orders: page.map((order) => ({
-        id: order._id.toString(),
-        code: order.code,
-        tableNumber: order.tableNumber,
-        status: order.status,
-        total: order.total,
-        createdAt: order.createdAt,
-        items: order.items,
+      orders: page.map((row) => ({
+        id: String(row._id),
+        code: row.code,
+        tableNumber: row.tableNumber || "",
+        status: row.status,
+        total: row.total ?? (row.quote?.totals?.totalMinor || 0) / 100,
+        createdAt: row.createdAt,
+        items: row.items,
+        branchId: row.branchId,
+        branchName: row.branchName,
+        sourceKind: row.sourceKind,
+        kind: row.kind || "table",
       })),
+      complete: result.unavailable.length === 0,
+      unavailableBranches: result.unavailable,
       next:
         rows.length > 25
           ? Buffer.from(
               JSON.stringify({
-                id: last._id.toString(),
-                at: last.createdAt.toISOString(),
+                id: String(last._id),
+                at: new Date(last.createdAt).toISOString(),
+                branch: last.branchId,
+                kind: last.sourceKind,
               }),
             ).toString("base64url")
           : null,
     });
   });
   api.post("/account/orders/:id/reorder", requireCustomer, async (req, res) => {
-    const order = await store.orders.findOne({
+    const sourceBranch =
+      typeof req.query.sourceBranch === "string"
+        ? req.query.sourceBranch
+        : store.branchId || "main";
+    const context = await (
+      await import("./branches.js")
+    )
+      .getBranchRuntime(store.rootStore || store, config)
+      .get(sourceBranch);
+    const collection =
+      req.query.sourceKind === "fulfillment"
+        ? context.store.fulfillments
+        : context.store.orders;
+    const order = await collection.findOne({
       _id: requireId(req.params.id),
-      customerId: req.customer._id,
+      customerId: { $in: customerIds(req.customer) },
     });
     if (!order)
       throw new HttpError(404, "NOT_FOUND", "This order could not be found.");

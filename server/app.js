@@ -1,5 +1,6 @@
 import { registerCourierCallback } from "./courier.js";
 import { registerLive } from "./live.js";
+import { registerCustomerLive } from "./customer-live.js";
 export { createApp } from "./branch-router.js";
 import {
   hasBranchAccess,
@@ -293,7 +294,12 @@ export function createBranchApp(store, config, frontendMiddleware) {
       getTableCookie(req),
       requestKey,
       input,
-      req.customer ? { customerId: req.customer._id } : {},
+      req.customer
+        ? {
+            customerId: req.customer._id,
+            customerAliases: req.customer.aliases || [],
+          }
+        : {},
     );
     res.status(result.replay ? 200 : 201).json({ order: result.order });
   });
@@ -427,7 +433,9 @@ export function createBranchApp(store, config, frontendMiddleware) {
   });
   staffApi.use(requireStaff);
   staffApi.use(enforcePermissions);
-  app.stopLive = registerLive(staffApi, store);
+  const stopStaffLive = registerLive(staffApi, store),
+    stopCustomerLive = registerCustomerLive(api, store, config);
+  app.stopLive = () => Promise.all([stopStaffLive(), stopCustomerLive()]);
   staffApi.get("/me", (req, res) => res.json(staffPayload(req.staff, config)));
   staffApi.get("/orders", async (req, res) => {
     const role = req.staff.role;

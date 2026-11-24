@@ -6,6 +6,12 @@ import { body, HttpError } from "./http.js";
 import { hash, passwordMatches } from "./security.js";
 import { transaction } from "./money.js";
 import { billView } from "./bill-view.js";
+import {
+  printerConfiguration,
+  printerProfiles,
+  registerPrinterRouting,
+  routedTicketGroups,
+} from "./printer-routing.js";
 const clean = (value) => String(value ?? "").replace(/[\x00-\x1f\x7f]/g, " ");
 const reason = z.string().trim().min(3).max(160),
   key = z.string().regex(/^[a-f0-9]{32}$/);
@@ -50,6 +56,9 @@ const view = (row) => ({
   copyOf: row.copyOf || null,
   confirmedBy: row.confirmedBy || null,
   confirmedAt: row.confirmedAt || null,
+  stationId: row.stationId || null,
+  stationName: row.stationName || "",
+  printerId: row.printerId || "default",
 });
 function kitchenLines(order, event) {
   return [
@@ -94,6 +103,62 @@ export async function queueKitchenTicket(store, order, event, session, by) {
       "kot:" + order._id + ":" + (order.revision || 0) + ":" + event,
     ),
     policy = await store.settings.findOne({ _id: "print-config" }, { session });
+  const routed = await routedTicketGroups(store, order, session);
+  if (routed) {
+    const rows = [];
+    for (const group of routed.groups) {
+      const printerId = group.station.printerId,
+        id = hash(
+          "kot:" +
+            order._id +
+            ":" +
+            (order.revision || 0) +
+            ":" +
+            event +
+            ":station:" +
+            group.station.id,
+        ),
+        row = {
+          _id: id,
+          kind: "kitchen",
+          title: group.station.name + " ticket",
+          sourceId: order._id,
+          sourceCode: order.code,
+          event,
+          sourceRevision: order.revision || 0,
+          stationId: group.station.id,
+          stationName: group.station.name,
+          printerId,
+          routingSnapshot: routed.snapshot,
+          lines: [
+            "STATION: " + group.station.name,
+            ...kitchenLines({ ...order, items: group.items }, event),
+            ...(group.items.length
+              ? []
+              : ["NO ITEMS REMAIN. STOP THE PREVIOUS STATION TICKET."]),
+          ],
+          status:
+            policy?.autoEnabled && routed.snapshot.destinationHashes[printerId]
+              ? "queued"
+              : "ready",
+          auto: Boolean(
+            policy?.autoEnabled && routed.snapshot.destinationHashes[printerId],
+          ),
+          destinationHash: routed.snapshot.destinationHashes[printerId] || "",
+          attempts: 0,
+          nextAt: new Date(),
+          createdAt: new Date(),
+          by,
+        };
+      await store.printJobs.updateOne(
+        { _id: id },
+        { $setOnInsert: row },
+        { session, upsert: true },
+      );
+      rows.push(row);
+    }
+    return rows[0];
+  }
   const row = {
     _id: id,
     kind: "kitchen",
@@ -102,8 +167,8 @@ export async function queueKitchenTicket(store, order, event, session, by) {
     sourceCode: order.code,
     event,
     lines: kitchenLines(order, event),
-    status: policy?.autoEnabled ? "queued" : "ready",
-    auto: Boolean(policy?.autoEnabled),
+    status: policy?.autoEnabled && policy.destinationHash ? "queued" : "ready",
+    auto: Boolean(policy?.autoEnabled && policy.destinationHash),
     destinationHash: policy?.destinationHash || "",
     attempts: 0,
     nextAt: new Date(),
@@ -172,7 +237,6 @@ export function sendPrinterBytes(config, bytes) {
   });
 }
 export async function runPrintJobs(store, config) {
-  if (!printerReady(config)) return;
   await store.printJobs.updateMany(
     { status: "sending", leaseUntil: { $lt: new Date() } },
     {
@@ -184,10 +248,76 @@ export async function runPrintJobs(store, config) {
     },
   );
   const policy = await store.settings.findOne({ _id: "print-config" });
+  const profiles = printerProfiles(config)
+    .map((profile) => ({
+      id: profile.id,
+      config: printerConfiguration(config, profile.id),
+    }))
+    .filter((p) => printerReady(p.config));
+  const validIds = profiles.map((p) => p.id);
+  await store.printJobs.updateMany(
+    {
+      status: { $in: ["queued", "retrying"] },
+      $or: [
+        { printerId: { $exists: true, $nin: validIds } },
+        ...(!validIds.includes("default")
+          ? [{ printerId: { $exists: false } }]
+          : []),
+      ],
+    },
+    {
+      $set: {
+        status: "destination_changed",
+        message:
+          "This printer profile is unavailable. Restore its approved configuration or use browser thermal print.",
+      },
+    },
+  );
+  if (!profiles.length) return;
+  const destinations = profiles.map((p) => ({
+    ...p,
+    destinationHash: destinationHash(p.config),
+  }));
+  for (const p of destinations)
+    await store.printJobs.updateMany(
+      {
+        status: { $in: ["queued", "retrying"] },
+        ...(p.id === "default"
+          ? {
+              $or: [
+                { printerId: "default" },
+                { printerId: { $exists: false } },
+              ],
+            }
+          : { printerId: p.id }),
+        destinationHash: { $ne: p.destinationHash },
+      },
+      {
+        $set: {
+          status: "destination_changed",
+          message:
+            "This printer profile changed. Review its destination before manually sending.",
+        },
+      },
+    );
   const row = await store.printJobs.findOneAndUpdate(
     {
       status: { $in: ["queued", "retrying"] },
-      destinationHash: destinationHash(config),
+      $and: [
+        {
+          $or: destinations.map((p) => ({
+            destinationHash: p.destinationHash,
+            ...(p.id === "default"
+              ? {
+                  $or: [
+                    { printerId: "default" },
+                    { printerId: { $exists: false } },
+                  ],
+                }
+              : { printerId: p.id }),
+          })),
+        },
+      ],
       nextAt: { $lte: new Date() },
       $or: [
         { auto: false },
@@ -202,9 +332,10 @@ export async function runPrintJobs(store, config) {
   );
   if (!row) return;
   try {
-    const p = printerSettings(config),
+    const selected = printerConfiguration(config, row.printerId || "default"),
+      p = printerSettings(selected),
       bytes = escposBytes(row.lines, p.columns, p.cut);
-    await sendPrinterBytes(config, bytes);
+    await sendPrinterBytes(selected, bytes);
     await store.printJobs.updateOne(
       { _id: row._id, status: "sending" },
       {
@@ -290,6 +421,7 @@ export function registerPrinting(
   billingRoles,
   requireId,
 ) {
+  registerPrinterRouting(api, store, config, { printerReady, destinationHash });
   api.get("/printing", async (req, res) => {
     if (!["admin", "kitchen", "cashier"].includes(req.staff.role))
       throw new HttpError(
@@ -309,7 +441,9 @@ export function registerPrinting(
       .toArray();
     res.json({
       jobs: rows.filter((row) => permitted(req, row)).map(view),
-      configured: printerReady(config),
+      configured: printerProfiles(config).some((p) =>
+        printerReady(printerConfiguration(config, p.id)),
+      ),
       autoEnabled: Boolean(policy?.autoEnabled),
       profile:
         "English ASCII ESC/POS over configured TCP; browser print supports Unicode",
@@ -331,7 +465,15 @@ export function registerPrinting(
         "PASSWORD_REQUIRED",
         "Re-enter the administrator password.",
       );
-    if (input.autoEnabled && !printerReady(config))
+    const routing = await store.settings.findOne({ _id: "print-routing" });
+    if (
+      input.autoEnabled &&
+      !(routing?.enabled
+        ? printerProfiles(config).some((p) =>
+            printerReady(printerConfiguration(config, p.id)),
+          )
+        : printerReady(config))
+    )
       throw new HttpError(
         503,
         "PRINTER_SETUP",
@@ -462,12 +604,6 @@ export function registerPrinting(
   });
   api.post("/printing/jobs/:id/send", async (req, res) => {
     const input = body(z.strictObject({ reason }), req.body);
-    if (!printerReady(config))
-      throw new HttpError(
-        503,
-        "PRINTER_SETUP",
-        "Configure the server printer or use browser thermal print.",
-      );
     await transaction(store, async (session) => {
       const row = await store.printJobs.findOne(
         { _id: req.params.id },
@@ -475,7 +611,21 @@ export function registerPrinting(
       );
       if (!row || !permitted(req, row))
         throw new HttpError(404, "NOT_FOUND", "Print job not found.");
-      if (!["ready", "failed", "browser_required"].includes(row.status))
+      const selected = printerConfiguration(config, row.printerId || "default");
+      if (!selected || !printerReady(selected))
+        throw new HttpError(
+          503,
+          "PRINTER_SETUP",
+          "Configure this station printer or use browser thermal print.",
+        );
+      if (
+        ![
+          "ready",
+          "failed",
+          "browser_required",
+          "destination_changed",
+        ].includes(row.status)
+      )
         throw new HttpError(
           409,
           "PRINT_STATE",
@@ -483,15 +633,15 @@ export function registerPrinting(
         );
       escposBytes(
         row.lines,
-        printerSettings(config).columns,
-        printerSettings(config).cut,
+        printerSettings(selected).columns,
+        printerSettings(selected).cut,
       );
       await store.printJobs.updateOne(
         { _id: row._id },
         {
           $set: {
             status: "queued",
-            destinationHash: destinationHash(config),
+            destinationHash: destinationHash(selected),
             auto: false,
             nextAt: new Date(),
             attempts: 0,
@@ -540,6 +690,13 @@ export function registerPrinting(
       const row = {
         _id: id,
         kind: source.kind,
+        ...(source.stationId
+          ? {
+              stationId: source.stationId,
+              stationName: source.stationName,
+              printerId: source.printerId,
+            }
+          : {}),
         title: source.title,
         sourceId: source.sourceId,
         sourceCode: source.sourceCode,

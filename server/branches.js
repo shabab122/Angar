@@ -194,11 +194,7 @@ export function registerBranchManagement(router, root, config) {
         "main",
         cookieOptions(config, { signed: true, maxAge: 365 * 86400000 }),
       );
-      for (const name of [
-        "angar_table",
-        "angar_customer",
-        "angar_staff_pending",
-      ])
+      for (const name of ["angar_table", "angar_staff_pending"])
         res.clearCookie(name, cookieOptions(config));
     }
     res.json({
@@ -218,7 +214,7 @@ export function registerBranchManagement(router, root, config) {
       input.branchId,
       cookieOptions(config, { signed: true, maxAge: 365 * 86400000 }),
     );
-    for (const name of ["angar_table", "angar_customer", "angar_staff_pending"])
+    for (const name of ["angar_table", "angar_staff_pending"])
       res.clearCookie(name, cookieOptions(config));
     res.json({ selected: input.branchId });
   });

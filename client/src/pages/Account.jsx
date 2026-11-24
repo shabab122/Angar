@@ -1,3 +1,4 @@
+import SharedAccountLinks from "./SharedAccountLinks";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -497,6 +498,7 @@ export function Account() {
             )}
           </section>
           <AccountHistory key={customer.id} />
+          <SharedAccountLinks />
           <div className="account-member-grid">
             <section className="commerce-card">
               <h2>{t("Points activity", "পয়েন্টের হিসাব")}</h2>
@@ -617,7 +619,11 @@ function AccountHistory() {
           ? [
               ...new Map(
                 [...previous, ...resource.data.orders].map((row) => [
-                  row.id,
+                  (row.branchId || "main") +
+                    ":" +
+                    (row.sourceKind || "table") +
+                    ":" +
+                    row.id,
                   row,
                 ]),
               ).values(),
@@ -629,10 +635,18 @@ function AccountHistory() {
     setBusy(order.id);
     setError("");
     try {
-      const result = await api("/account/orders/" + order.id + "/reorder", {
-        method: "POST",
-        data: {},
-      });
+      const result = await api(
+        "/account/orders/" +
+          order.id +
+          "/reorder?sourceBranch=" +
+          encodeURIComponent(order.branchId || "main") +
+          "&sourceKind=" +
+          (order.sourceKind || "table"),
+        {
+          method: "POST",
+          data: {},
+        },
+      );
       setProposal(result);
     } catch (failure) {
       setError(failure.message);
@@ -664,7 +678,15 @@ function AccountHistory() {
       )}
       <div className="history-grid">
         {rows.map((order) => (
-          <article key={order.id}>
+          <article
+            key={
+              (order.branchId || "main") +
+              ":" +
+              (order.sourceKind || "table") +
+              ":" +
+              order.id
+            }
+          >
             <div>
               <h3>{order.code}</h3>
               <Status status={order.status} />
@@ -672,7 +694,8 @@ function AccountHistory() {
             <small>
               {dhakaTime(order.createdAt, false, language)} ·{" "}
               {t("Table ", "টেবিল ")}
-              {order.tableNumber.slice(1)}
+              {order.tableNumber ? order.tableNumber.slice(1) : order.kind}
+              {order.branchName && <> · {order.branchName}</>}
             </small>
             <p>
               {order.items
@@ -686,13 +709,20 @@ function AccountHistory() {
             </p>
             <strong>{money(order.total)}</strong>
             <div className="commerce-inline-actions">
-              <Button
-                secondary
-                className="button-small"
-                to={"/orders?order=" + order.id}
+              <a
+                className="button button-secondary button-small"
+                href={
+                  (order.sourceKind === "fulfillment"
+                    ? "/takeaway"
+                    : "/orders") +
+                  "?order=" +
+                  order.id +
+                  "&branch=" +
+                  encodeURIComponent(order.branchId || "main")
+                }
               >
                 {t("View order", "অর্ডার দেখুন")}
-              </Button>
+              </a>
               <Button
                 className="button-small"
                 disabled={busy !== null}
@@ -745,8 +775,7 @@ function AccountHistory() {
               </p>
             ))}
             <p>
-              {proposal.items.length}{" "}
-              {t("available selections", "উপলব্ধ খাবার")}
+              {proposal.items.length} {t("available selections", "উপলব্ধ খাবার")}
             </p>
             {cart.length > 0 && (
               <p>
@@ -764,10 +793,7 @@ function AccountHistory() {
                 setCartOpen(true);
               }}
             >
-              {t(
-                "Use these items and review cart",
-                "এই খাবার নিয়ে কার্ট দেখুন",
-              )}
+              {t("Use these items and review cart", "এই খাবার নিয়ে কার্ট দেখুন")}
             </Button>
           </div>
         </Modal>

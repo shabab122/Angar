@@ -1,3 +1,4 @@
+import { customerIds, ownsCustomer } from "./shared-customers.js";
 import { z } from "zod";
 import { body, HttpError } from "./http.js";
 import { getGuest, getTableCookie } from "./security.js";
@@ -91,7 +92,7 @@ export async function promotionTotals(
     const used = await store.couponRedemptions.countDocuments(
       {
         couponCode: coupon._id,
-        customerId: customer._id,
+        customerId: { $in: customerIds(customer) },
         reversed: { $ne: true },
       },
       { session },
@@ -268,7 +269,7 @@ export function registerGuestRewards(api, store, config) {
       const own = await store.orders.findOne(
         {
           visitId: context.visitId,
-          customerId: req.customer._id,
+          customerId: { $in: customerIds(req.customer) },
           status: { $ne: "cancelled" },
         },
         { session },
@@ -281,7 +282,7 @@ export function registerGuestRewards(api, store, config) {
         );
       if (
         table.promotion &&
-        !table.promotion.customerId.equals(req.customer._id)
+        !ownsCustomer(req.customer, table.promotion.customerId)
       )
         throw new HttpError(
           409,

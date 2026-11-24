@@ -437,6 +437,12 @@ export async function restoreBackup(
   await target
     .collection("settings")
     .updateOne(
+      { _id: "purchase-suggestion-policy" },
+      { $set: { enabled: false, needsReview: true } },
+    );
+  await target
+    .collection("settings")
+    .updateOne(
       { _id: "staff-alert-config" },
       { $set: { emailEnabled: false } },
     );

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.9.0
+
+Base: `Angar_Kitchen_React_v2.8.zip`. Existing stack, restaurant design/assets, earlier features and dependencies are retained.
+
+- Added shared customer sessions, profile and exact loyalty balance across branches, stable combined table/takeaway history and current-menu reorder review. Legacy accounts claim their original IDs or link after proof of both passwords; aliases preserve old financial references and restore markers prevent repeat balance credits.
+- Added private customer SSE invalidations for owned orders, bookings, waiting lists, bills and courier status, with bounded buffering, reconnect/resync, session revocation and existing polling fallback.
+- Added category/dish kitchen station routing, distinct approved TCP printer profiles, station-only KOTs and pinned routing snapshots for running orders. Amendments issue replacement/stop tickets; unknown output is never silently resent.
+- Added branch-scoped duty management, cross-branch roster/open-attendance locks, self clock-in/out, audited actual-time corrections, approved overtime and exact monthly/hourly payroll snapshots. Reviewed payroll creates one salary expense; actual payments remain separate.
+- Added supplier/target/pack/quote replenishment rules, usable-stock and outstanding-order/draft coverage, grouped purchase draft generation and opt-in periodic drafting. Existing approval limits, receipts and supplier payments remain unchanged.
+- Added v2.9 tests and Bengali upgrade/setup/recovery instructions. Updated the earlier branch-switch assertion for shared customer sign-in and made the expense retry test replay the actual winning concurrent payment; existing expense behavior is unchanged.
+
 ## 2.8.0
 
 Base: `Angar_Kitchen_React_v2.7.zip`. Existing design/assets, stack, guest workflows and dependencies are retained.

@@ -1,3 +1,4 @@
+import { useCustomerUpdates } from "../lib/useCustomerUpdates";
 import { useEffect, useRef, useState } from "react";
 import { CalendarDays, Clock3, MapPin, Users } from "lucide-react";
 import { useApp } from "../lib/AppContext";
@@ -18,6 +19,7 @@ const nextDay = () =>
     .toISOString()
     .slice(0, 10);
 export function Reservations() {
+  const live = useCustomerUpdates();
   const { t, customer, language, notify } = useApp();
   const options = useResource("/reservations/options"),
     own = useResource("/reservations", { interval: 15000 }),
@@ -132,6 +134,13 @@ export function Reservations() {
   }
   return (
     <section className="container commerce-page reservations-page">
+      <p className="customer-live-status" role="status">
+        {live === "connected"
+          ? "Connected · instant updates"
+          : live === "offline"
+            ? "Offline · reconnecting when available"
+            : "Automatic updates · reconnecting"}
+      </p>
       <div className="page-heading">
         <Eyebrow>{t("SAVE YOUR SEAT", "আপনার আসন রাখুন")}</Eyebrow>
         <h1>

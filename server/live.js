@@ -2,6 +2,11 @@ import { capabilities } from "./access.js";
 import { hash, sessionToken, STAFF_COOKIE } from "./security.js";
 // Only invalidation labels leave MongoDB; browsers fetch their authorized views.
 const topics = {
+  purchaseSuggestionRules: "purchasing",
+  payProfiles: "payroll",
+  payrollRuns: "payroll",
+  staffAttendance: "attendance",
+  staffRosters: "attendance",
   stockTransfers: "transfers",
   stockTransferEntries: "transfers",
   monitoringIncidents: "monitoring",
@@ -34,6 +39,8 @@ const topics = {
   cashMovements: "cash",
 };
 const access = {
+  payroll: ["payroll.manage"],
+  attendance: ["attendance.self", "attendance.manage"],
   transfers: ["transfers.view"],
   monitoring: ["monitoring.view"],
   courier: ["courier.manage", "orders.view"],

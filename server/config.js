@@ -86,6 +86,7 @@ export function loadConfig(env = process.env) {
       "SSLCOMMERZ_PUBLIC_ORIGIN must be a public HTTPS origin without a path.",
     );
   return {
+    kitchenPrinters: parsePrinters(env.KITCHEN_PRINTERS_JSON || "[]"),
     monitoring: {
       emailEnabled: env.MONITOR_EMAIL_ENABLED === "true",
       emails: (env.MONITOR_EMAIL_TO || "")
@@ -195,4 +196,46 @@ export function loadConfig(env = process.env) {
         fileURLToPath(new URL("../data/reviews/", import.meta.url)),
     ),
   };
+}
+function parsePrinters(text) {
+  let rows;
+  try {
+    rows = JSON.parse(text);
+  } catch {
+    throw new Error("KITCHEN_PRINTERS_JSON must be a JSON array.");
+  }
+  if (!Array.isArray(rows) || rows.length > 10)
+    throw new Error(
+      "Configure at most ten additional kitchen printer profiles.",
+    );
+  const seen = new Set(["default"]);
+  return rows.map((p) => {
+    if (
+      !p ||
+      typeof p !== "object" ||
+      !Object.keys(p).every((k) =>
+        ["id", "name", "host", "port", "columns", "cut"].includes(k),
+      ) ||
+      !/^[a-z][a-z0-9-]{1,23}$/.test(p.id || "") ||
+      seen.has(p.id) ||
+      typeof p.name !== "string" ||
+      p.name.length < 2 ||
+      p.name.length > 60 ||
+      typeof p.host !== "string" ||
+      p.host.length > 253 ||
+      !/^[A-Za-z0-9.:-]+$/.test(p.host) ||
+      !Number.isInteger(p.port) ||
+      p.port < 1 ||
+      p.port > 65535 ||
+      !Number.isInteger(p.columns) ||
+      p.columns < 32 ||
+      p.columns > 48 ||
+      typeof p.cut !== "boolean"
+    )
+      throw new Error(
+        "Invalid kitchen printer profile; use a unique id, name, host, port, columns and cut.",
+      );
+    seen.add(p.id);
+    return p;
+  });
 }

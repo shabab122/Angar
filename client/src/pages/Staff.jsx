@@ -57,6 +57,12 @@ import {
 } from "./StaffPanels";
 
 const BranchManagement = lazy(() => import("./BranchManagement"));
+const PurchaseSuggestions = lazy(() => import("./PurchaseSuggestions"));
+const KitchenStations = lazy(() => import("./KitchenStations"));
+const PayrollPanel = lazy(() => import("./PayrollPanel"));
+const MyAttendance = lazy(() =>
+  import("./PayrollPanel").then((module) => ({ default: module.MyAttendance })),
+);
 const OrganizationDashboard = lazy(() => import("./OrganizationDashboard"));
 const StockTransfersPanel = lazy(() => import("./StockTransfersPanel"));
 const MonitoringPanel = lazy(() => import("./MonitoringPanel"));
@@ -69,6 +75,15 @@ const PrintingPanel = lazy(() => import("./PrintingPanel"));
 const OperationsAlerts = lazy(() => import("./OperationsAlerts"));
 
 const navigation = [
+  ["purchaseSuggestions", PackageCheck, "Purchase suggestions", ["admin"]],
+  ["kitchenStations", ChefHat, "Kitchen station routing", ["admin"]],
+  ["payroll", Wallet, "Staff attendance & payroll", ["admin"]],
+  [
+    "myAttendance",
+    ClipboardList,
+    "My attendance & duty",
+    ["admin", "cashier", "kitchen", "waiter"],
+  ],
   ["organization", LayoutDashboard, "All-branch dashboard", ["admin"]],
   [
     "stockTransfers",
@@ -140,6 +155,10 @@ const navigation = [
 ];
 
 const navPermission = {
+  purchaseSuggestions: ["purchase.suggest"],
+  kitchenStations: ["printing.configure"],
+  payroll: ["attendance.manage", "payroll.manage"],
+  myAttendance: ["attendance.self"],
   organization: ["branches.dashboard"],
   stockTransfers: ["transfers.view"],
   monitoring: ["monitoring.view"],
@@ -715,6 +734,12 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
           {tab === "team" && <StaffAccounts user={user} />}
           {tab === "inventory" && <InventoryPanel {...common} />}
           <Suspense fallback={<Loading />}>
+            {tab === "purchaseSuggestions" && (
+              <PurchaseSuggestions user={user} />
+            )}
+            {tab === "kitchenStations" && <KitchenStations />}
+            {tab === "payroll" && <PayrollPanel user={user} />}
+            {tab === "myAttendance" && <MyAttendance />}
             {tab === "organization" && <OrganizationDashboard />}
             {tab === "stockTransfers" && <StockTransfersPanel user={user} />}
             {tab === "monitoring" && <MonitoringPanel user={user} />}

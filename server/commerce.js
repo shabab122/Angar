@@ -1,3 +1,4 @@
+import { ownsCustomer } from "./shared-customers.js";
 import { getGuest, getTableCookie } from "./security.js";
 import { orderOwner } from "./customer.js";
 import { billView } from "./bill-view.js";
@@ -80,7 +81,7 @@ export function registerGuestBills(api, store, config, requireId) {
         loyaltyPoints: table.promotion?.loyaltyPoints || 0,
         canChangePromotion:
           !table.promotion ||
-          table.promotion.customerId?.equals(req.customer?._id),
+          ownsCustomer(req.customer, table.promotion.customerId),
         ready:
           orders.length > 0 &&
           orders.every((order) => order.status === "served"),
