@@ -1,8 +1,19 @@
-# Angar Kitchen · React v2.9
+# Angar Kitchen · React v2.10
 
 বাংলাদেশের রেস্টুরেন্টের জন্য React ওয়েবসাইট, QR টেবিল অর্ডারিং এবং আলাদা স্টাফ workspace। আগের Angar Kitchen-এর order/security rules রেখে frontend নতুনভাবে তৈরি হয়েছে। **Angar Kitchen একটি নমুনা ব্র্যান্ড**; ছবি, জায়গা, মূল্য, সময়, event capacity ও package নিজের রেস্টুরেন্ট অনুযায়ী বদলাতে হবে। `Sample review` লেখা ফিডব্যাক বাস্তব অতিথির রিভিউ নয়।
 
 **প্রযুক্তি:** React + JavaScript + Vite, custom responsive CSS, Node.js 24, Express 5 এবং MongoDB। Frontend ও API একই Express server ও origin-এ চলে। Browser-এ MongoDB credentials দেওয়া হয় না। আপনার সর্বশেষ নির্দেশনা অনুসারে ডকুমেন্টের PostgreSQL-এর বদলে MongoDB ব্যবহার করা হয়েছে।
+
+## v2.10 — Local AI customer chatbot
+
+**Base: Angar_Kitchen_React_v2.9.zip।** আগের design/assets, stack ও features রেখে **Ask Angar** যোগ হয়েছে। পূর্ণ local setup ও ব্যবহার: [UPGRADE_v2.10_BN.md](UPGRADE_v2.10_BN.md)। নতুন runtime dependency নেই।
+
+- Ollama local model দিয়ে বাংলা/English প্রশ্ন ও conversational follow-up বোঝা; current branch menu, base price, availability ও real public guest ratings থেকে grounded dish cards। Sample ratings বাদ; data না থাকলে house picks হিসেবে চিহ্নিত।
+- Budget/group/spice, popularity, dish details, posted hours/location ও existing ordering/reservations/payment/delivery screens-এর help। Model নিজে business/financial action চালায় না।
+- Private branch/actor chat history, bounded retention, clear, idempotent retry, concurrency/rate limits, local-only provider checks এবং honestly labelled basic menu help when AI is unavailable।
+- Admin → Customer AI assistant: protected enable/pause ও local model health। `npm run ai:check` diagnostic।
+
+**AI চালাতে app server-এ Ollama ও local model লাগবে:** install Ollama, `ollama pull qwen3:4b`, তারপর `npm run setup`, `npm run ai:check`, build/start। Default `.env`: `OLLAMA_BASE_URL=http://127.0.0.1:11434`, `OLLAMA_MODEL=qwen3:4b`। Model weights ZIP-এ নেই; cloud API key প্রয়োজন নেই। Model না চললে default enabled assistant-এ Basic menu help স্পষ্টভাবে দেখায়। Existing `.env`, database, data ও encryption keys রাখুন; demo seed/reset করবেন না।
 
 ## v2.9 — পরের পাঁচটি ফিচার
 

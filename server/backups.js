@@ -30,6 +30,7 @@ const magic = Buffer.from("ANGAR_BACKUP_V1\n"),
   maxBytes = 96 * 1024 * 1024;
 const identifier = /^BK-[a-f0-9]{32}$/;
 const transient = new Set([
+  "assistantConversations",
   "staffSessions",
   "customerSessions",
   "accountTokens",
@@ -123,7 +124,9 @@ export async function createBackup(store, config, id) {
   const collections = Object.values(store)
     .filter(
       (value) =>
-        value?.collectionName && value.dbName === store.db.databaseName,
+        value?.collectionName &&
+        value.dbName === store.db.databaseName &&
+        value.collectionName !== "assistantConversations",
     )
     .sort((a, b) => a.collectionName.localeCompare(b.collectionName));
   const definitions = [];

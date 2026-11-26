@@ -97,6 +97,11 @@ export const permissionCatalog = [
 ];
 permissionCatalog.push(
   [
+    "assistant.manage",
+    "Configure the customer AI assistant and view local model health",
+    ["admin"],
+  ],
+  [
     "purchase.suggest",
     "Configure stock replenishment suggestions and draft automation",
     ["admin"],
@@ -380,6 +385,7 @@ export function routePermission(req) {
   const p = req.path,
     m = req.method,
     b = req.body || {};
+  if (/^\/assistant(?:\/|$)/.test(p)) return "assistant.manage";
   if (/^\/purchase-suggestions(?:\/|$)/.test(p)) return "purchase.suggest";
   if (/^\/payroll(?:\/|$)/.test(p)) return "payroll.manage";
   if (/^\/attendance(?:\/|$)/.test(p))

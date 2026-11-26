@@ -1,4 +1,5 @@
 import { PwaControls } from "./PwaControls";
+import AssistantChat from "./AssistantChat";
 import { BranchSelector } from "./BranchSelector";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
@@ -194,6 +195,7 @@ export function Layout() {
           </span>
         </div>
       </footer>
+      <AssistantChat />
     </div>
   );
 }
