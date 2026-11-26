@@ -1,4 +1,4 @@
-const BUILD = "98de5acf461b5cc0";
+const BUILD = "02d6ab4b2c098f22";
 const SHELL = "angar-shell-" + BUILD,
   PUBLIC = "angar-public-" + BUILD;
 const PRECACHE = /*__PRECACHE__*/ ["/", "/offline.html"];

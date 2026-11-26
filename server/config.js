@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { chatbotConfig } from "./chatbot-config.js";
 
 export function loadConfig(env = process.env) {
   const required = ["MONGODB_URI", "COOKIE_SECRET", "APP_ORIGIN"];
@@ -86,6 +87,7 @@ export function loadConfig(env = process.env) {
       "SSLCOMMERZ_PUBLIC_ORIGIN must be a public HTTPS origin without a path.",
     );
   return {
+    chatbot: chatbotConfig(env),
     kitchenPrinters: parsePrinters(env.KITCHEN_PRINTERS_JSON || "[]"),
     monitoring: {
       emailEnabled: env.MONITOR_EMAIL_ENABLED === "true",

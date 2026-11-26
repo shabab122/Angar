@@ -57,6 +57,7 @@ import {
 } from "./StaffPanels";
 
 const BranchManagement = lazy(() => import("./BranchManagement"));
+const ChatbotPanel = lazy(() => import("./ChatbotPanel"));
 const PurchaseSuggestions = lazy(() => import("./PurchaseSuggestions"));
 const KitchenStations = lazy(() => import("./KitchenStations"));
 const PayrollPanel = lazy(() => import("./PayrollPanel"));
@@ -75,6 +76,7 @@ const PrintingPanel = lazy(() => import("./PrintingPanel"));
 const OperationsAlerts = lazy(() => import("./OperationsAlerts"));
 
 const navigation = [
+  ["assistant", MessageSquareText, "Customer AI assistant", ["admin"]],
   ["purchaseSuggestions", PackageCheck, "Purchase suggestions", ["admin"]],
   ["kitchenStations", ChefHat, "Kitchen station routing", ["admin"]],
   ["payroll", Wallet, "Staff attendance & payroll", ["admin"]],
@@ -155,6 +157,7 @@ const navigation = [
 ];
 
 const navPermission = {
+  assistant: ["assistant.manage"],
   purchaseSuggestions: ["purchase.suggest"],
   kitchenStations: ["printing.configure"],
   payroll: ["attendance.manage", "payroll.manage"],
@@ -734,6 +737,7 @@ export function Dashboard({ user, onSignedOut, onIdentityUpdated = () => {} }) {
           {tab === "team" && <StaffAccounts user={user} />}
           {tab === "inventory" && <InventoryPanel {...common} />}
           <Suspense fallback={<Loading />}>
+            {tab === "assistant" && <ChatbotPanel />}
             {tab === "purchaseSuggestions" && (
               <PurchaseSuggestions user={user} />
             )}

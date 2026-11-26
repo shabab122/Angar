@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.10.0
+
+Base: `Angar_Kitchen_React_v2.9.zip`. Existing restaurant design/assets, dependencies and earlier workflows are retained.
+
+- Added the bilingual Ask Angar customer chatbot with an Ollama local-model adapter, structured request understanding, conversation context and server-validated preferences.
+- Grounded dish cards in current branch menu data, availability flags, approved public non-sample guest ratings and recent completed-order popularity; no model-invented factual prose or business writes.
+- Added private branch/actor history, short retention, clear, stale-scope rejection, retry/concurrency protection, bounded inference and explicit basic-help degradation. Conversations are excluded from application backups.
+- Added branch-permission/password-protected assistant controls, local model health and the `ai:check` command. Added regression coverage and Bengali local setup/upgrade examples.
+
 ## 2.9.0
 
 Base: `Angar_Kitchen_React_v2.8.zip`. Existing stack, restaurant design/assets, earlier features and dependencies are retained.

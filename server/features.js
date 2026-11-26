@@ -1,6 +1,7 @@
 import { registerStockTransfers } from "./stock-transfers.js";
 import { registerPurchaseSuggestions } from "./purchase-suggestions.js";
 import { registerPayroll } from "./payroll.js";
+import { registerAssistant, registerStaffAssistant } from "./chatbot.js";
 import { registerCourierGuest, registerCourierStaff } from "./courier.js";
 import { hasPermission } from "./access.js";
 import { registerStocktakes } from "./stocktakes.js";
@@ -91,6 +92,7 @@ const paymentInput = z.strictObject({
 });
 
 export function registerGuestFeatures(api, store, config, requireId) {
+  registerAssistant(api, store, config);
   registerCustomers(api, store, config, requireId);
   registerNotifications(api, store, config);
   registerGuestRewards(api, store, config);
@@ -291,6 +293,7 @@ export function registerStaffFeatures(
   registerStockTransfers(api, store, config, requireId);
   registerPurchaseSuggestions(api, store, config, requireId);
   registerPayroll(api, store, config, requireId);
+  registerStaffAssistant(api, store, config);
   registerStaffFulfillment(
     api,
     store,

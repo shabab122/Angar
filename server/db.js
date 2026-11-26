@@ -14,6 +14,7 @@ export async function connectDatabase(config, sharedClient = null) {
       config.identityDatabase || config.mongoDatabase,
     );
     const collections = {
+      assistantConversations: db.collection("assistantConversations"),
       transfers: identityDb.collection("stockTransfers"),
       transferEntries: db.collection("stockTransferEntries"),
       purchaseRules: db.collection("purchaseSuggestionRules"),
@@ -88,6 +89,10 @@ export async function connectDatabase(config, sharedClient = null) {
     };
     const { dishes, tables, orders, reviews, staff, sessions } = collections;
     await Promise.all([
+      collections.assistantConversations.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 },
+      ),
       collections.rosters.createIndex(
         { branchId: 1, requestKey: 1 },
         { unique: true },
